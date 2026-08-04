@@ -78,8 +78,26 @@ function rowsToCsvLines(rows) {
   ];
 }
 
-function downloadCsv(filename, rows) {
-  const lines = rowsToCsvLines(rows);
+// Two call shapes, same as the source's downloadCsv():
+//   downloadCsv(filename, rows) — flat array of row objects.
+//   downloadCsv(filename, { sections: [{ title, rows }, ...] }) — multiple
+//   named sections combined into one file, each preceded by a title line.
+// The Attendance tab (chunk 3) uses the flat-array shape; Reports (this
+// chunk) uses the sections shape for multi-tile exports.
+function downloadCsv(filename, data) {
+  let lines;
+  if (Array.isArray(data)) {
+    lines = rowsToCsvLines(data);
+  } else if (data && Array.isArray(data.sections)) {
+    lines = [];
+    data.sections.forEach(({ title, rows }) => {
+      if (!rows || !rows.length) return;
+      if (lines.length) lines.push('');
+      lines.push(title, ...rowsToCsvLines(rows));
+    });
+  } else {
+    return;
+  }
   if (!lines.length) return;
 
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -346,5 +364,252 @@ function wireAttendance() {
   });
 }
 
+// ---- Shared date helper (leave decisions, report filenames) ----
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ---- Leave management: approve/decline ----
+// A decision moves the card from #leave-list into #leave-history-list
+// in place (relabeling its badge, appending the decided date, dropping the
+// Approve/Decline buttons) rather than rebuilding it from scratch — there's
+// no in-memory pendingLeaveRequests/leaveHistory array to re-render from,
+// and the card's own dataset attributes (set by data.php) are already the
+// source of truth Reports reads from, so moving the node keeps them intact.
+function wireLeave() {
+  const panel = document.getElementById('a-leave');
+  if (!panel) return;
+  const list = panel.querySelector('#leave-list');
+  const pendingCountEl = panel.querySelector('#leave-pending-count');
+  const historyList = panel.querySelector('#leave-history-list');
+  const historyCountEl = panel.querySelector('#leave-history-count');
+  if (!list || !historyList) return;
+
+  function updatePendingCount() {
+    if (pendingCountEl) pendingCountEl.textContent = `${list.querySelectorAll('.leave-req-card').length} awaiting review`;
+  }
+  function updateHistoryCount() {
+    if (historyCountEl) historyCountEl.textContent = `${historyList.querySelectorAll('.leave-req-card').length} decided`;
+  }
+
+  function wireCard(card) {
+    card.querySelectorAll('[data-decision]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const decision = btn.dataset.decision; // 'approved' | 'declined'
+        const decidedAt = todayIso();
+
+        const subEl = card.querySelector('.lr-sub');
+        if (subEl) subEl.textContent = `${subEl.textContent} · Decided ${decidedAt}`;
+
+        const actions = card.querySelector('.leave-req-actions');
+        const label = decision === 'approved' ? 'Approved' : 'Declined';
+        actions.innerHTML = `<span class="badge badge-${decision}">${label}</span>`;
+
+        card.dataset.status = decision;
+        card.dataset.decidedAt = decidedAt;
+
+        historyList.prepend(card);
+        updatePendingCount();
+        updateHistoryCount();
+      });
+    });
+  }
+
+  list.querySelectorAll('.leave-req-card').forEach(wireCard);
+}
+
+// ---- Reports: tile selection + CSV/PDF export ----
+// Report row-builders read live DOM state (attendance table, leave cards)
+// rather than a JS-side data array, so a leave decision made in the Leave
+// tab or an edit made in Employees is reflected in the export — same
+// cross-tab reactivity the source gets for free from sharing one
+// placeholder.js module, achieved here via the DOM instead.
+function attendanceCellText(cells, i) {
+  const text = cells[i].textContent.trim();
+  return text === '—' ? '' : text;
+}
+
+function buildDailyRows() {
+  const tbody = document.getElementById('attendance-tbody');
+  if (!tbody) return [];
+  return [...tbody.querySelectorAll('tr[data-name]')].map((row) => {
+    const cells = row.querySelectorAll('td');
+    return {
+      Employee: row.dataset.name,
+      'Clock In': attendanceCellText(cells, 1),
+      'Clock Out': attendanceCellText(cells, 2),
+      Hours: attendanceCellText(cells, 3),
+      Status: attendanceCellText(cells, 4),
+    };
+  });
+}
+
+function buildEmployeeHoursRows() {
+  const tbody = document.getElementById('attendance-tbody');
+  if (!tbody) return [];
+  return [...tbody.querySelectorAll('tr[data-name]')].map((row) => {
+    const cells = row.querySelectorAll('td');
+    return {
+      Employee: row.dataset.name,
+      'Hours Today': attendanceCellText(cells, 3),
+    };
+  });
+}
+
+function buildLeaveRows() {
+  const cards = [
+    ...document.querySelectorAll('#leave-list .leave-req-card'),
+    ...document.querySelectorAll('#leave-history-list .leave-req-card'),
+  ];
+  return cards.map((card) => ({
+    Employee: card.dataset.employeeName,
+    'Leave Type': card.dataset.leaveTypeLabel,
+    Days: card.dataset.durationDays,
+    Reason: card.dataset.reason,
+    Status: card.dataset.status.charAt(0).toUpperCase() + card.dataset.status.slice(1),
+    'Decided On': card.dataset.decidedAt || '',
+  }));
+}
+
+// Maps a report tile's data-key to the section title used in exports and
+// the row-builder that supplies its data — only tiles with real backing
+// data (daily, employee_hours, leave) have an entry; the other three tiles
+// are rendered disabled in portal.php and never reach this map.
+const TILE_DATA = {
+  daily: { title: 'Daily Attendance', build: buildDailyRows },
+  employee_hours: { title: 'Employee Hours', build: buildEmployeeHoursRows },
+  leave: { title: 'Leave Reports', build: buildLeaveRows },
+};
+
+// Ported from pdf.js's downloadPdf(), adapted from the ESM `autoTable(doc,
+// opts)` call style to the CDN UMD build's `doc.autoTable(opts)` method
+// style (jsPDF + jspdf-autotable loaded via <script> tags in portal.php's
+// <head> per the export decision — no bundler here to resolve npm imports).
+function downloadPdf(filename, title, sections) {
+  const rowsBySections = (sections || []).filter((s) => s.rows && s.rows.length);
+  if (!rowsBySections.length) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  doc.setFontSize(14);
+  doc.text(title, 14, 16);
+  doc.setFontSize(10);
+  doc.text(`Exported ${today}`, 14, 22);
+
+  let cursorY = 30;
+  rowsBySections.forEach(({ title: sectionTitle, rows }) => {
+    doc.setFontSize(12);
+    doc.text(sectionTitle, 14, cursorY);
+
+    const headers = Object.keys(rows[0]);
+    doc.autoTable({
+      startY: cursorY + 4,
+      head: [headers],
+      body: rows.map((row) => headers.map((h) => String(row[h] ?? ''))),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [210, 167, 167], textColor: [28, 14, 12] },
+      margin: { left: 14, right: 14 },
+    });
+
+    cursorY = doc.lastAutoTable.finalY + 14;
+  });
+
+  doc.save(filename);
+}
+
+function wireReports() {
+  const panel = document.getElementById('a-reports');
+  if (!panel) return;
+  const tileEls = Array.from(panel.querySelectorAll('.report-tile:not(.disabled)'));
+  const csvBtn = panel.querySelector('#btn-export-reports-csv');
+  const pdfBtn = panel.querySelector('#btn-export-reports-pdf');
+  if (!csvBtn || !pdfBtn) return;
+  const selected = new Set();
+
+  function updateExportButtons() {
+    const hasSelection = selected.size > 0;
+    csvBtn.disabled = !hasSelection;
+    pdfBtn.disabled = !hasSelection;
+  }
+
+  tileEls.forEach((tile) => {
+    tile.addEventListener('click', () => {
+      const key = tile.dataset.key;
+      if (selected.has(key)) {
+        selected.delete(key);
+        tile.classList.remove('selected');
+      } else {
+        selected.add(key);
+        tile.classList.add('selected');
+      }
+      updateExportButtons();
+    });
+  });
+
+  function selectedSections() {
+    return Array.from(selected)
+      .map((key) => TILE_DATA[key])
+      .filter(Boolean)
+      .map(({ title, build }) => ({ title, rows: build() }))
+      .filter((section) => section.rows.length);
+  }
+
+  function exportFilename(ext) {
+    const today = todayIso();
+    return selected.size === 1
+      ? `report-${Array.from(selected)[0]}-${today}.${ext}`
+      : `report-export-${today}.${ext}`;
+  }
+
+  csvBtn.addEventListener('click', () => {
+    const sections = selectedSections();
+    if (!sections.length) return;
+    downloadCsv(exportFilename('csv'), { sections });
+  });
+
+  pdfBtn.addEventListener('click', () => {
+    const sections = selectedSections();
+    if (!sections.length) return;
+    const title = sections.length === 1 ? sections[0].title : 'Report Export';
+    downloadPdf(exportFilename('pdf'), title, sections);
+  });
+}
+
+// ---- Settings: toggle switches + dirty-state save ----
+function wireSettings() {
+  const panel = document.getElementById('a-settings');
+  if (!panel) return;
+
+  panel.querySelectorAll('[data-toggle]').forEach((toggle) => {
+    toggle.addEventListener('click', () => toggle.classList.toggle('on'));
+  });
+
+  const nameEl = panel.querySelector('#settings-company-name');
+  const startEl = panel.querySelector('#settings-hours-start');
+  const endEl = panel.querySelector('#settings-hours-end');
+  const thresholdEl = panel.querySelector('#settings-late-threshold');
+  const saveBtn = panel.querySelector('#btn-save-settings');
+  const successEl = panel.querySelector('#settings-save-success');
+  if (!saveBtn) return;
+
+  function markDirty() {
+    successEl.style.display = 'none';
+    saveBtn.disabled = false;
+  }
+  [nameEl, startEl, endEl, thresholdEl].forEach((el) => el?.addEventListener('input', markDirty));
+
+  saveBtn.addEventListener('click', () => {
+    // Front-end only — no PATCH /api/settings endpoint yet.
+    successEl.style.display = 'block';
+    saveBtn.disabled = true;
+  });
+}
+
 wireEmployees();
 wireAttendance();
+wireLeave();
+wireReports();
+wireSettings();

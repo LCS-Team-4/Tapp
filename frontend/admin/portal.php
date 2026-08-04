@@ -14,6 +14,10 @@ $user = current_user();
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/components/index.css">
+<!-- Reports tab PDF export — jsPDF + autoTable plugin, UMD builds. Loaded
+     here only (not employee/portal.php, which has no PDF export). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.8/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -219,9 +223,109 @@ $user = current_user();
         </div>
       </div>
 
-      <div class="tab-panel" id="a-leave"></div>
-      <div class="tab-panel" id="a-reports"></div>
-      <div class="tab-panel" id="a-settings"></div>
+      <!-- Leave management -->
+      <div class="tab-panel" id="a-leave">
+        <div class="card">
+          <div class="section-head"><h3>Pending Requests</h3><span class="muted" id="leave-pending-count"><?= count($pendingLeaveRequests) ?> awaiting review</span></div>
+          <div id="leave-list">
+            <?php foreach ($pendingLeaveRequests as $i => $req): ?>
+            <?php
+                $stroke = ['#D2A7A7', '#6C714F', '#6D382B'][$i % 3];
+                $iconPath = $i % 3 === 2
+                    ? '<path d="M12 3v6M12 21c-5-2-8-6-8-11 3 0 6 1.5 8 5 2-3.5 5-5 8-5 0 5-3 9-8 11Z"/>'
+                    : '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>';
+                $dayLabel = $req['duration_days'] . ' day' . ($req['duration_days'] === 1 ? '' : 's');
+            ?>
+            <div class="leave-req-card" data-leave-id="<?= (int) $req['leave_id'] ?>" data-employee-name="<?= htmlspecialchars($req['employee_name']) ?>" data-leave-type-label="<?= htmlspecialchars($leaveTypeLabels[$req['leave_type']]) ?>" data-duration-days="<?= (int) $req['duration_days'] ?>" data-reason="<?= htmlspecialchars($req['reason']) ?>" data-status="pending" data-decided-at="">
+              <div class="lr-main">
+                <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="<?= $stroke ?>" stroke-width="1.8"><?= $iconPath ?></svg></div>
+                <div>
+                  <div class="lr-title"><?= htmlspecialchars($req['employee_name']) ?> — <?= htmlspecialchars($leaveTypeLabels[$req['leave_type']]) ?></div>
+                  <div class="lr-sub"><?= htmlspecialchars($dayLabel) ?> · <?= htmlspecialchars($req['reason']) ?></div>
+                </div>
+              </div>
+              <div class="leave-req-actions">
+                <span class="badge badge-pending" style="margin-right:6px;">Pending</span>
+                <button class="btn btn-olive btn-sm" data-decision="approved" type="button">Approve</button>
+                <button class="btn btn-rust btn-sm" data-decision="declined" type="button">Decline</button>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+        <div class="card" style="margin-top:18px;">
+          <div class="section-head"><h3>Leave History</h3><span class="muted" id="leave-history-count"><?= count($leaveHistory) ?> decided</span></div>
+          <div id="leave-history-list">
+            <?php foreach ($leaveHistory as $i => $req): ?>
+            <?php
+                $stroke = ['#D2A7A7', '#6C714F', '#6D382B'][$i % 3];
+                $iconPath = $i % 3 === 2
+                    ? '<path d="M12 3v6M12 21c-5-2-8-6-8-11 3 0 6 1.5 8 5 2-3.5 5-5 8-5 0 5-3 9-8 11Z"/>'
+                    : '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>';
+                $dayLabel = $req['duration_days'] . ' day' . ($req['duration_days'] === 1 ? '' : 's');
+                $label = $req['status'] === 'approved' ? 'Approved' : 'Declined';
+            ?>
+            <div class="leave-req-card" data-leave-id="<?= (int) $req['leave_id'] ?>" data-employee-name="<?= htmlspecialchars($req['employee_name']) ?>" data-leave-type-label="<?= htmlspecialchars($leaveTypeLabels[$req['leave_type']]) ?>" data-duration-days="<?= (int) $req['duration_days'] ?>" data-reason="<?= htmlspecialchars($req['reason']) ?>" data-status="<?= htmlspecialchars($req['status']) ?>" data-decided-at="<?= htmlspecialchars($req['decided_at']) ?>">
+              <div class="lr-main">
+                <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="<?= $stroke ?>" stroke-width="1.8"><?= $iconPath ?></svg></div>
+                <div>
+                  <div class="lr-title"><?= htmlspecialchars($req['employee_name']) ?> — <?= htmlspecialchars($leaveTypeLabels[$req['leave_type']]) ?></div>
+                  <div class="lr-sub"><?= htmlspecialchars($dayLabel) ?> · <?= htmlspecialchars($req['reason']) ?> · Decided <?= htmlspecialchars($req['decided_at']) ?></div>
+                </div>
+              </div>
+              <div class="leave-req-actions">
+                <span class="badge badge-<?= htmlspecialchars($req['status']) ?>"><?= htmlspecialchars($label) ?></span>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports -->
+      <div class="tab-panel" id="a-reports">
+        <div class="card">
+          <div class="section-head"><h3>Generate Reports</h3></div>
+          <div class="report-grid">
+            <?php foreach ($reportTiles as $tile): ?>
+            <button class="report-tile<?= $tile['disabled'] ? ' disabled' : '' ?>" data-key="<?= htmlspecialchars($tile['key']) ?>" type="button"<?= $tile['disabled'] ? ' disabled' : '' ?>>
+              <div class="rt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D2A7A7" stroke-width="1.8"><?= $tile['icon'] ?></svg></div>
+              <div class="rt-title"><?= htmlspecialchars($tile['title']) ?></div>
+              <div class="rt-sub"><?= $tile['subtitle'] ?></div>
+            </button>
+            <?php endforeach; ?>
+          </div>
+          <div class="divider"></div>
+          <div style="display:flex; gap:12px;">
+            <button class="btn btn-olive" id="btn-export-reports-csv" type="button" disabled>Export as CSV</button>
+            <button class="btn btn-outline" id="btn-export-reports-pdf" type="button" disabled>Export as PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="tab-panel" id="a-settings">
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="section-head"><h3>System Settings</h3></div>
+            <div class="form-field" style="margin-bottom:14px;"><label>Company Name</label><input type="text" id="settings-company-name" value="<?= htmlspecialchars($systemSettings['company_name']) ?>"></div>
+            <div class="form-row">
+              <div class="form-field"><label>Working Hours Start</label><input type="time" id="settings-hours-start" value="<?= htmlspecialchars($systemSettings['working_hours_start']) ?>"></div>
+              <div class="form-field"><label>Working Hours End</label><input type="time" id="settings-hours-end" value="<?= htmlspecialchars($systemSettings['working_hours_end']) ?>"></div>
+            </div>
+            <div class="form-field" style="margin-top:14px;"><label>Late Threshold (minutes)</label><input type="number" id="settings-late-threshold" value="<?= (int) $systemSettings['late_threshold_minutes'] ?>"></div>
+            <p class="form-success" id="settings-save-success" style="display:none;">Settings updated.</p>
+            <button class="btn btn-pink" id="btn-save-settings" style="margin-top:16px;" type="button" disabled>Save Settings</button>
+          </div>
+          <div class="card">
+            <div class="section-head"><h3>Integrations</h3></div>
+            <div class="settings-row"><div><div class="sr-label">QR Code Clock-In</div><div class="sr-sub">Employees scan to clock in/out</div></div><div class="toggle<?= $integrationSettings['qr_clock_in_enabled'] ? ' on' : '' ?>" data-toggle></div></div>
+            <div class="settings-row"><div><div class="sr-label">NFC Clock-In</div><div class="sr-sub">Employees tap a card or phone to clock in/out</div></div><div class="toggle<?= $integrationSettings['nfc_clock_in_enabled'] ? ' on' : '' ?>" data-toggle></div></div>
+            <div class="settings-row"><div><div class="sr-label">Google Sheets Sync</div><div class="sr-sub">Mirror attendance to a live sheet</div></div><div class="toggle<?= $integrationSettings['google_sheets_sync_enabled'] ? ' on' : '' ?>" data-toggle></div></div>
+            <div class="settings-row"><div><div class="sr-label">Raspberry Pi Device</div><div class="sr-sub"><?= htmlspecialchars($terminalStatus['device_name']) ?> · <?= htmlspecialchars($terminalStatus['network_label']) ?></div></div><span class="badge badge-present"><?= $terminalStatus['status'] === 'connected' ? 'Connected' : 'Disconnected' ?></span></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

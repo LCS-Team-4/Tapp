@@ -4,21 +4,8 @@
 // global switchTab() defined in app.js (loaded first) for the "Quick
 // Actions" deep-links; does not touch app.js itself.
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const EYE_ICON = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>';
 const EYE_OFF_ICON = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.22 4.44"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
-const EDIT_ICON = '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/>';
-const CANCEL_ICON = '<path d="M18 6 6 18"/><path d="M6 6l12 12"/>';
-
-// Escapes user-typed text (leave reason, etc.) before it's interpolated into
-// an innerHTML template — the source leave.js does this unescaped, which is
-// fine for its hardcoded placeholder data but not once the value comes from
-// a live form, so this is a deliberate deviation, not just a straight port.
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str ?? '';
-  return div.innerHTML;
-}
 
 // ---- Profile sub-tabs (Account / Leave / History) ----
 
@@ -58,19 +45,28 @@ function wireDashboardDeepLinks() {
 }
 
 // ---- Attendance: clock in/out ----
-// Ported from clockin.js's clockAction(): flips the status badge only, no
-// persistence (front-end only, same as the original prototype).
+// Submits a real POST to actions/clock.php and lets the redirect reload the
+// page — db.json is the source of truth now, so there's no local DOM state
+// to flip here anymore (was clockin.js's clockAction() before persistence).
+
+function postForm(action, fields) {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = action;
+  form.style.display = 'none';
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
+}
 
 function clockAction(type) {
-  const badge = document.getElementById('clock-badge');
-  if (!badge) return;
-  if (type === 'out') {
-    badge.textContent = 'Clocked Out';
-    badge.className = 'badge badge-onsite';
-  } else {
-    badge.textContent = 'Clocked In';
-    badge.className = 'badge badge-present';
-  }
+  postForm('actions/clock.php', { type });
 }
 
 function wireClockButtons() {
@@ -162,72 +158,10 @@ function wirePasswordToggles() {
 }
 
 // ---- Profile: Leave sub-tab (form + status list) ----
-
-function leaveIconStroke(status) {
-  if (status === 'approved') return '#6C714F';
-  if (status === 'declined') return '#6D382B';
-  return '#D2A7A7'; // pending
-}
-
-function leaveIconPath(status) {
-  if (status === 'declined') {
-    return '<path d="M12 3v6M12 21c-5-2-8-6-8-11 3 0 6 1.5 8 5 2-3.5 5-5 8-5 0 5-3 9-8 11Z"/>';
-  }
-  return '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>';
-}
-
-// Renders leave_requests.start_date/end_date (ISO dates) as "15 – 17 Jul" /
-// single-day "2 Jun" — same output as the source's formatDateRange().
-function formatDateRange(startDate, endDate) {
-  const [sy, sm, sd] = startDate.split('-').map(Number);
-  const [ey, em, ed] = endDate.split('-').map(Number);
-  if (startDate === endDate) return `${sd} ${MONTH_NAMES[sm - 1]}`;
-  if (sy === ey && sm === em) return `${sd} – ${ed} ${MONTH_NAMES[sm - 1]}`;
-  return `${sd} ${MONTH_NAMES[sm - 1]} – ${ed} ${MONTH_NAMES[em - 1]}`;
-}
-
-// Builds a leave-req-card DOM node for a new/edited request. Raw fields
-// (leave_type/start_date/end_date/reason) are stored as dataset attributes
-// so a later "Edit" click can read them back — there's no in-memory
-// leaveRequests array anymore now that PHP renders the initial list once,
-// so the DOM itself is the source of truth for client-side edits.
-function buildLeaveCard(req) {
-  const card = document.createElement('div');
-  card.className = 'leave-req-card';
-  card.dataset.leaveId = String(req.leave_id);
-  card.dataset.leaveType = req.leave_type;
-  card.dataset.startDate = req.start_date;
-  card.dataset.endDate = req.end_date;
-  card.dataset.reason = req.reason;
-
-  const stroke = leaveIconStroke(req.status);
-  const statusLabel = req.status.charAt(0).toUpperCase() + req.status.slice(1);
-  const actions = req.status === 'pending' ? `
-      <button class="btn-icon" data-leave-action="edit" data-id="${req.leave_id}" title="Edit request" aria-label="Edit request" type="button">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${EDIT_ICON}</svg>
-      </button>
-      <button class="btn-icon" data-leave-action="cancel" data-id="${req.leave_id}" title="Cancel request" aria-label="Cancel request" type="button">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${CANCEL_ICON}</svg>
-      </button>` : '';
-
-  card.innerHTML = `
-    <div class="lr-main">
-      <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.8">${leaveIconPath(req.status)}</svg></div>
-      <div>
-        <div class="lr-title">${escapeHtml(req.type_label)}</div>
-        <div class="lr-sub">${escapeHtml(formatDateRange(req.start_date, req.end_date))} · ${escapeHtml(req.reason)}</div>
-      </div>
-    </div>
-    <div class="leave-req-actions">
-      <span class="badge badge-${req.status}">${statusLabel}</span>${actions}
-    </div>
-  `;
-  return card;
-}
-
-// Ported from assets/app.js's submitLeave(): shows an alert on success (no
-// backend to submit to yet). Also validates required fields inline and
-// supports editing/cancelling a pending request in place, same as leave.js.
+// Submit/edit/cancel now POST to actions/leave.php and let the redirect
+// reload the page, same pattern as clockAction() above. "Edit" itself stays
+// client-side (just repopulating the form from the clicked card's dataset,
+// no write yet) — only the actual submit/cancel actions hit the server.
 function wireLeaveForm() {
   const panel = document.querySelector('[data-subtab-panel="leave"]');
   if (!panel) return;
@@ -272,34 +206,13 @@ function wireLeaveForm() {
     return valid;
   }
 
-  function resetForm() {
-    typeEl.selectedIndex = 0;
-    startEl.value = '';
-    endEl.value = '';
-    endEl.min = initialMin;
-    reasonEl.value = '';
-    editingId = null;
-    submitBtn.textContent = 'Submit Request';
-    clearFieldErrors();
-  }
-
-  function nextLeaveId() {
-    let max = 0;
-    listEl.querySelectorAll('[data-leave-id]').forEach((card) => {
-      max = Math.max(max, Number(card.dataset.leaveId));
-    });
-    return max + 1;
-  }
-
-  function wireCardActions(card) {
+  listEl.querySelectorAll('.leave-req-card').forEach((card) => {
     card.querySelector('[data-leave-action="cancel"]')?.addEventListener('click', () => {
       if (!confirm('Cancel this leave request?')) return;
-      const id = Number(card.dataset.leaveId);
-      card.remove();
-      if (editingId === id) resetForm();
+      postForm('actions/leave.php', { action: 'cancel', leave_id: card.dataset.leaveId });
     });
     card.querySelector('[data-leave-action="edit"]')?.addEventListener('click', () => {
-      editingId = Number(card.dataset.leaveId);
+      editingId = card.dataset.leaveId;
       typeEl.value = card.dataset.leaveType;
       startEl.value = card.dataset.startDate;
       endEl.min = startEl.value;
@@ -308,9 +221,7 @@ function wireLeaveForm() {
       submitBtn.textContent = 'Update Request';
       clearFieldErrors();
     });
-  }
-
-  listEl.querySelectorAll('.leave-req-card').forEach(wireCardActions);
+  });
 
   // Self-service leave requests can't be backdated, and the end date can't
   // be earlier than the start date — mirrors the source's datepicker
@@ -323,29 +234,18 @@ function wireLeaveForm() {
   submitBtn.addEventListener('click', () => {
     if (!validate()) return;
 
-    const typeLabel = typeEl.options[typeEl.selectedIndex].text;
-    const reqData = {
+    const fields = {
       leave_type: typeEl.value,
-      type_label: typeLabel,
       start_date: startEl.value,
       end_date: endEl.value,
       reason: reasonEl.value.trim(),
-      status: 'pending',
     };
 
     if (editingId !== null) {
-      const existing = listEl.querySelector(`[data-leave-id="${editingId}"]`);
-      const newCard = buildLeaveCard({ ...reqData, leave_id: editingId });
-      wireCardActions(newCard);
-      existing?.replaceWith(newCard);
+      postForm('actions/leave.php', { action: 'edit', leave_id: editingId, ...fields });
     } else {
-      const newCard = buildLeaveCard({ ...reqData, leave_id: nextLeaveId() });
-      wireCardActions(newCard);
-      listEl.append(newCard);
+      postForm('actions/leave.php', { action: 'submit', ...fields });
     }
-
-    resetForm();
-    alert('Leave request submitted — status set to Pending. An admin will be notified.');
   });
 }
 

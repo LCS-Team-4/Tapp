@@ -1,64 +1,44 @@
 <?php
-// data.php — placeholder data for the employee portal, mirrored from
-// ../../../Attendance-tracking-system/frontend/employee/src/data/placeholder.js.
-// There is no backend to fetch from yet (backend/app/** are empty stubs);
-// field names/enum values match the schema drafted on feature/Database-schema
-// (see database/schema.sql in Attendance-tracking-system) so this can be
-// swapped for real queries later without reshaping the views that use it.
+// data.php — employee portal data, sourced from frontend/data/db.json via
+// frontend/lib/db.php, keyed by the logged-in employee ($_SESSION set in
+// login_process.php). Field names/shapes match what portal.php and
+// employee.js already expect — only where the data comes from changed.
+require_once __DIR__ . '/../lib/db.php';
+
+$employeeId = $_SESSION['employee_id'] ?? '';
+$employee   = db_employee($employeeId) ?? [];
+$db         = db_read();
 
 // ---- 001_create_users ----
-// TODO: replace with a real lookup once
-// backend/app/Http/Controllers/AuthController.php exists.
 $currentUser = [
-    'employee_id' => 'EMP-0142',
-    'name'        => 'Sarah Lee',
-    'email'       => 'sarah.lee@tapp.co',
-    'department'  => 'Design',
-    'position'    => 'UI Designer',
-    'role'        => 'employee',
-    'role_label'  => 'EMP-0142',
-    'initials'    => 'SL',
-    'status'      => 'active', // users.status enum: active | inactive
+    'employee_id' => $employee['id']          ?? '',
+    'name'        => $employee['name']        ?? '',
+    'email'       => $employee['email']       ?? '',
+    'department'  => $employee['department']  ?? '',
+    'position'    => $employee['position']    ?? '',
+    'role'        => $employee['role']        ?? 'employee',
+    'role_label'  => ($employee['department'] ?? '') . ' · ' . ($employee['id'] ?? ''),
+    'initials'    => $employee['initials']    ?? '??',
+    'status'      => 'active', // users.status enum: active | inactive — no inactive seed users yet
 ];
 
 // ---- 003_create_attendance ----
-// TODO: replace with a real lookup once
-// backend/app/Services/AttendanceService.php exists.
-$todayStatus = [
-    'clock_in'  => '08:03 AM',
-    'clock_out' => null,
-    'status'    => 'present', // attendance.status enum: present | late | absent | onsite
-
-    // No migration yet — future scope, not backed by a real column.
-    'week_hours_logged' => 32.5,
-    'week_hours_target'  => 40,
-];
-
-$attendanceHistory = [
-    ['date_label' => 'Mon, 27 Jul', 'clock_in' => '08:01', 'clock_out' => '17:00', 'total_hours' => 8.0, 'status' => 'present'],
-    ['date_label' => 'Tue, 28 Jul', 'clock_in' => '08:12', 'clock_out' => '17:05', 'total_hours' => 8.1, 'status' => 'late'],
-    ['date_label' => 'Wed, 29 Jul', 'clock_in' => null,    'clock_out' => null,    'total_hours' => null, 'status' => 'absent'],
-    ['date_label' => 'Thu, 30 Jul', 'clock_in' => '07:58', 'clock_out' => '17:02', 'total_hours' => 8.1, 'status' => 'present'],
-    ['date_label' => 'Fri, 31 Jul', 'clock_in' => '08:20', 'clock_out' => '16:50', 'total_hours' => 7.5, 'status' => 'late'],
-];
+$attendanceRecord  = $db['attendance'][$employeeId] ?? ['today' => [], 'history' => []];
+$todayStatus        = $attendanceRecord['today'];
+$attendanceHistory   = $attendanceRecord['history'];
 
 // ---- 005_create_leave ----
-// TODO: replace with a real lookup once
-// backend/app/Http/Controllers/LeaveController.php exists.
-
 // annual_leave_balance actually lives on `users`, not leave_requests — kept
 // as its own array here since the employee portal has no other use for a
 // full $currentUser-shaped record on this screen.
 $leaveBalance = [
-    'annual_leave_balance' => 12,
+    'annual_leave_balance' => $employee['annual_leave_balance'] ?? 0,
 ];
 
 // leave_requests.leave_type enum: annual | sick | unpaid | emergency
-$leaveRequests = [
-    ['leave_id' => 1, 'leave_type' => 'annual', 'start_date' => '2026-07-15', 'end_date' => '2026-07-17', 'duration_days' => 3, 'reason' => 'Family Event', 'status' => 'pending'],
-    ['leave_id' => 2, 'leave_type' => 'sick',    'start_date' => '2026-06-02', 'end_date' => '2026-06-02', 'duration_days' => 1, 'reason' => 'Flu',           'status' => 'approved'],
-    ['leave_id' => 3, 'leave_type' => 'unpaid',  'start_date' => '2025-03-14', 'end_date' => '2025-03-14', 'duration_days' => 1, 'reason' => 'Personal',      'status' => 'declined'],
-];
+$leaveRequests = array_values(array_filter($db['leave_requests'] ?? [], function ($req) use ($employeeId) {
+    return $req['employee_id'] === $employeeId;
+}));
 
 // Value/label pairs so the leave form submits the real enum value
 // (leave_requests.leave_type) while still displaying a friendly label.

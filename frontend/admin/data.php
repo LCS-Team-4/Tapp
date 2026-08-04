@@ -1,29 +1,37 @@
 <?php
-// data.php — placeholder data for the admin portal, mirrored from
-// ../../../Attendance-tracking-system/frontend/admin/src/data/placeholder.js.
-// There is no backend to fetch from yet (backend/app/** are empty stubs);
-// field names/enum values match the schema drafted on feature/Database-schema
-// (see database/schema.sql in Attendance-tracking-system) so this can be
-// swapped for real queries later without reshaping the views that use it.
-//
-// This mirrors the whole source file (including leave/settings/reports data
-// not yet rendered by any panel) so later chunks can build a-leave,
-// a-reports, and a-settings on top of it without reworking this file.
+// data.php — admin portal data. $employees/$attendanceMonitoring/leave
+// data/$liveFeed are sourced from frontend/data/db.json via
+// frontend/lib/db.php — the same underlying records employee/data.php reads
+// for each employee's own view, so numbers never diverge between what an
+// employee sees for themselves and what admin sees for them.
+// $dashboardStats/$departmentOptions/$systemSettings/$integrationSettings/
+// $terminalStatus/$reportTiles stay static placeholder data (out of scope
+// for this pass — they aren't per-employee records db.json models).
+require_once __DIR__ . '/../lib/db.php';
+
+$db = db_read();
 
 // ---- 001_create_users ----
 // employment state (users.status: active | inactive) and today's clock
 // status (attendance.status: present | late | absent | onsite) are two
 // different concepts that happen to share badge styling in the Employees
 // tab — modeled as two separate fields per employee, per the real schema.
-// TODO: replace with a real lookup once
-// backend/app/Http/Controllers/EmployeeController.php exists.
-$employees = [
-    ['employee_id' => 'EMP-0101', 'name' => 'John Smith', 'initials' => 'JS', 'email' => 'john.smith@tapp.co', 'department' => 'Engineering', 'position' => 'Backend Dev',     'status' => 'active', 'today_attendance_status' => 'present'],
-    ['employee_id' => 'EMP-0142', 'name' => 'Sarah Lee',  'initials' => 'SL', 'email' => 'sarah.lee@tapp.co',  'department' => 'Design',      'position' => 'UI Designer',     'status' => 'active', 'today_attendance_status' => 'present'],
-    ['employee_id' => 'EMP-0118', 'name' => 'Mike Chen',  'initials' => 'MC', 'email' => 'mike.chen@tapp.co',  'department' => 'Operations',  'position' => 'Site Supervisor', 'status' => 'active', 'today_attendance_status' => 'onsite'],
-    ['employee_id' => 'EMP-0155', 'name' => 'Jane Park',  'initials' => 'JP', 'email' => 'jane.park@tapp.co',  'department' => 'Marketing',   'position' => 'Content Lead',    'status' => 'active', 'today_attendance_status' => 'present'],
-    ['employee_id' => 'EMP-0163', 'name' => 'Tom Reyes',  'initials' => 'TR', 'email' => 'tom.reyes@tapp.co',  'department' => 'Engineering', 'position' => 'QA Engineer',     'status' => 'active', 'today_attendance_status' => 'late'],
-];
+$employees = [];
+foreach ($db['users'] ?? [] as $user) {
+    if ($user['role'] !== 'employee') {
+        continue;
+    }
+    $employees[] = [
+        'employee_id'             => $user['id'],
+        'name'                    => $user['name'],
+        'initials'                => $user['initials'],
+        'email'                   => $user['email'],
+        'department'              => $user['department'],
+        'position'                => $user['position'],
+        'status'                  => 'active', // no inactive seed users yet
+        'today_attendance_status' => $db['attendance'][$user['id']]['today']['status'] ?? 'absent',
+    ];
+}
 
 $departmentOptions = ['All departments', 'Design', 'Engineering', 'Operations', 'Marketing'];
 
@@ -38,24 +46,28 @@ $dashboardStats = [
     'on_time_rate_pct'   => 86,
 ];
 
-// Static UI flavor for now — not backed by a live feed table/endpoint yet.
-// TODO: replace with a real lookup once
-// backend/app/Http/Controllers/FeedController.php exists.
-$liveFeed = [
-    ['time_label' => '08:01', 'employee_name' => 'John Smith', 'event_type' => 'clock_in'],
-    ['time_label' => '08:03', 'employee_name' => 'Sarah Lee',  'event_type' => 'clock_in'],
-    ['time_label' => '08:15', 'employee_name' => 'Mike Chen',  'event_type' => 'clock_out'],
-    ['time_label' => '08:20', 'employee_name' => 'Jane Park',  'event_type' => 'leave_applied'],
-    ['time_label' => '08:31', 'employee_name' => 'Tom Reyes',  'event_type' => 'marked_late'],
-];
+// Most recent entries from activity_log, same shape the dashboard already
+// expects (time_label/employee_name/event_type) — activity_log is the
+// authoritative event source now, not a hand-maintained flavor list.
+$liveFeed = $db['activity_log'] ?? [];
 
-$attendanceMonitoring = [
-    ['employee_id' => 'EMP-0101', 'name' => 'John Smith', 'initials' => 'JS', 'clock_in' => '08:01', 'clock_out' => '17:00', 'total_hours' => 8.0,  'status' => 'present'],
-    ['employee_id' => 'EMP-0142', 'name' => 'Sarah Lee',  'initials' => 'SL', 'clock_in' => '08:15', 'clock_out' => null,    'total_hours' => null, 'status' => 'onsite'],
-    ['employee_id' => 'EMP-0118', 'name' => 'Mike Chen',  'initials' => 'MC', 'clock_in' => '07:59', 'clock_out' => '17:10', 'total_hours' => 8.2,  'status' => 'present'],
-    ['employee_id' => 'EMP-0155', 'name' => 'Jane Park',  'initials' => 'JP', 'clock_in' => null,    'clock_out' => null,    'total_hours' => null, 'status' => 'absent'],
-    ['employee_id' => 'EMP-0163', 'name' => 'Tom Reyes',  'initials' => 'TR', 'clock_in' => '08:31', 'clock_out' => '17:05', 'total_hours' => 7.6,  'status' => 'late'],
-];
+// Same today-attendance records employee/data.php reads for each
+// employee's own $todayStatus — so e.g. Sarah's clock-in here is always
+// identical to what Sarah sees on her own dashboard, never a second,
+// independently-maintained copy of the same fact.
+$attendanceMonitoring = [];
+foreach ($employees as $emp) {
+    $today = $db['attendance'][$emp['employee_id']]['today'] ?? [];
+    $attendanceMonitoring[] = [
+        'employee_id' => $emp['employee_id'],
+        'name'        => $emp['name'],
+        'initials'    => $emp['initials'],
+        'clock_in'    => $today['clock_in']  ?? null,
+        'clock_out'   => $today['clock_out'] ?? null,
+        'total_hours' => $today['total_hours'] ?? null,
+        'status'      => $today['status'] ?? 'absent',
+    ];
+}
 
 // ---- 005_create_leave ----
 // leave_requests.leave_type enum: annual | sick | unpaid | emergency
@@ -66,21 +78,28 @@ $leaveTypeLabels = [
     'emergency' => 'Emergency Leave',
 ];
 
-// TODO: replace with a real lookup once
-// backend/app/Http/Controllers/LeaveController.php exists. Not rendered
-// until a-leave ships in a later chunk.
-$pendingLeaveRequests = [
-    ['leave_id' => 1, 'employee_name' => 'Jane Park',  'leave_type' => 'annual', 'duration_days' => 3, 'reason' => 'Family emergency', 'status' => 'pending'],
-    ['leave_id' => 2, 'employee_name' => 'Tom Reyes',  'leave_type' => 'sick',   'duration_days' => 1, 'reason' => 'Flu symptoms',      'status' => 'pending'],
-    ['leave_id' => 3, 'employee_name' => 'John Smith', 'leave_type' => 'unpaid', 'duration_days' => 2, 'reason' => 'Personal matters',  'status' => 'pending'],
-];
-
-// Already-decided leave requests, kept separate from $pendingLeaveRequests so
-// the decision isn't lost once Approve/Decline is clicked.
-$leaveHistory = [
-    ['leave_id' => 4, 'employee_name' => 'Sarah Lee', 'leave_type' => 'annual', 'duration_days' => 5, 'reason' => 'Family vacation', 'status' => 'approved', 'decided_at' => '2026-07-20'],
-    ['leave_id' => 5, 'employee_name' => 'Mike Chen', 'leave_type' => 'sick',   'duration_days' => 2, 'reason' => 'Migraine',        'status' => 'declined', 'decided_at' => '2026-07-22'],
-];
+// Same leave_requests db.json rows employee/data.php filters to the current
+// employee — here split by status instead of by employee_id, so a request
+// Sarah sees as "Pending" on her own Leave sub-tab is the exact same record
+// admin sees under Pending Requests, not a separately-seeded duplicate.
+$pendingLeaveRequests = [];
+$leaveHistory = [];
+foreach ($db['leave_requests'] ?? [] as $req) {
+    $row = [
+        'leave_id'       => $req['leave_id'],
+        'employee_name'  => $req['employee_name'],
+        'leave_type'     => $req['leave_type'],
+        'duration_days'  => $req['duration_days'],
+        'reason'         => $req['reason'],
+        'status'         => $req['status'],
+    ];
+    if ($req['status'] === 'pending') {
+        $pendingLeaveRequests[] = $row;
+    } else {
+        $row['decided_at'] = $req['decided_at'];
+        $leaveHistory[] = $row;
+    }
+}
 
 // ---- 006_create_settings ----
 // Not rendered until a-settings ships in a later chunk.
@@ -150,7 +169,7 @@ function feed_dot_color(string $eventType): string
         'clock_in'      => '#9aa574',
         'clock_out'     => '#d2a7a7',
         'leave_applied' => '#d3ac77',
-        'marked_late'   => '#c26a52',
+        'leave_decided' => '#9aa574',
     ];
     return $colors[$eventType] ?? '#cdb9ab';
 }
@@ -161,7 +180,7 @@ function feed_text(string $eventType): string
         'clock_in'      => 'clocked in',
         'clock_out'     => 'clocked out',
         'leave_applied' => 'applied for leave',
-        'marked_late'   => 'marked late',
+        'leave_decided' => 'had a leave request decided',
     ];
     return $texts[$eventType] ?? $eventType;
 }

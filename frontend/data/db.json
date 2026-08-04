@@ -1,0 +1,113 @@
+{
+  "_comment": "Mock database for the TAPP PHP port. Not real auth or persistence infrastructure — see frontend/lib/db.php. Demo password for every user below is 'Password123!' (bcrypt-hashed per record); never shown in the UI.",
+
+  "users": [
+    {
+      "id": "ADM-0001",
+      "name": "Amara Osei",
+      "email": "admin@tapp.co",
+      "password_hash": "$2y$10$mQdx7uBgZjN6PmnEHw0qPOXCMuLDNoMmk6FyJtAM26anpaQSEmBSu",
+      "role": "admin",
+      "department": null,
+      "position": "System Admin",
+      "initials": "AO"
+    },
+    {
+      "id": "EMP-0142",
+      "name": "Sarah Lee",
+      "email": "sarah.lee@tapp.co",
+      "password_hash": "$2y$10$mQdx7uBgZjN6PmnEHw0qPOXCMuLDNoMmk6FyJtAM26anpaQSEmBSu",
+      "role": "employee",
+      "department": "Design",
+      "position": "UI Designer",
+      "initials": "SL",
+      "annual_leave_balance": 12
+    },
+    {
+      "id": "EMP-0101",
+      "name": "John Smith",
+      "email": "john.smith@tapp.co",
+      "password_hash": "$2y$10$mQdx7uBgZjN6PmnEHw0qPOXCMuLDNoMmk6FyJtAM26anpaQSEmBSu",
+      "role": "employee",
+      "department": "Engineering",
+      "position": "Backend Dev",
+      "initials": "JS",
+      "annual_leave_balance": 8
+    },
+    {
+      "id": "EMP-0118",
+      "name": "Mike Chen",
+      "email": "mike.chen@tapp.co",
+      "password_hash": "$2y$10$mQdx7uBgZjN6PmnEHw0qPOXCMuLDNoMmk6FyJtAM26anpaQSEmBSu",
+      "role": "employee",
+      "department": "Operations",
+      "position": "Site Supervisor",
+      "initials": "MC",
+      "annual_leave_balance": 15
+    }
+  ],
+
+  "attendance": {
+    "EMP-0142": {
+      "today": {
+        "clock_in": "08:03 AM",
+        "clock_out": null,
+        "total_hours": null,
+        "status": "present",
+        "week_hours_logged": 32.5,
+        "week_hours_target": 40
+      },
+      "history": [
+        { "date_label": "Mon, 27 Jul", "clock_in": "08:01", "clock_out": "17:00", "total_hours": 8.0, "status": "present" },
+        { "date_label": "Tue, 28 Jul", "clock_in": "08:12", "clock_out": "17:05", "total_hours": 8.1, "status": "late" },
+        { "date_label": "Wed, 29 Jul", "clock_in": null, "clock_out": null, "total_hours": null, "status": "absent" }
+      ]
+    },
+    "EMP-0101": {
+      "today": {
+        "clock_in": "08:01 AM",
+        "clock_out": "05:00 PM",
+        "total_hours": 8.0,
+        "status": "present",
+        "week_hours_logged": 40,
+        "week_hours_target": 40
+      },
+      "history": [
+        { "date_label": "Mon, 27 Jul", "clock_in": "07:55", "clock_out": "17:00", "total_hours": 8.1, "status": "present" },
+        { "date_label": "Tue, 28 Jul", "clock_in": "08:00", "clock_out": "17:00", "total_hours": 8.0, "status": "present" },
+        { "date_label": "Wed, 29 Jul", "clock_in": "08:05", "clock_out": "17:10", "total_hours": 8.1, "status": "present" }
+      ]
+    },
+    "EMP-0118": {
+      "today": {
+        "clock_in": "07:59 AM",
+        "clock_out": null,
+        "total_hours": null,
+        "status": "onsite",
+        "week_hours_logged": 28,
+        "week_hours_target": 40
+      },
+      "history": [
+        { "date_label": "Mon, 27 Jul", "clock_in": "08:20", "clock_out": "17:15", "total_hours": 7.9, "status": "late" },
+        { "date_label": "Tue, 28 Jul", "clock_in": null, "clock_out": null, "total_hours": null, "status": "absent" },
+        { "date_label": "Wed, 29 Jul", "clock_in": "07:59", "clock_out": "17:10", "total_hours": 8.2, "status": "present" }
+      ]
+    }
+  },
+
+  "leave_requests": [
+    { "leave_id": 1, "employee_id": "EMP-0142", "employee_name": "Sarah Lee", "leave_type": "annual", "start_date": "2026-07-15", "end_date": "2026-07-17", "duration_days": 3, "reason": "Family Event", "status": "pending", "decided_at": null },
+    { "leave_id": 2, "employee_id": "EMP-0101", "employee_name": "John Smith", "leave_type": "sick", "start_date": "2026-06-02", "end_date": "2026-06-02", "duration_days": 1, "reason": "Flu", "status": "approved", "decided_at": "2026-06-01" },
+    { "leave_id": 3, "employee_id": "EMP-0118", "employee_name": "Mike Chen", "leave_type": "unpaid", "start_date": "2025-03-14", "end_date": "2025-03-14", "duration_days": 1, "reason": "Personal", "status": "declined", "decided_at": "2025-03-10" },
+    { "leave_id": 4, "employee_id": "EMP-0118", "employee_name": "Mike Chen", "leave_type": "emergency", "start_date": "2026-08-10", "end_date": "2026-08-10", "duration_days": 1, "reason": "Family emergency", "status": "pending", "decided_at": null }
+  ],
+
+  "activity_log": [
+    { "time_label": "07:59", "employee_name": "Mike Chen", "event_type": "clock_in" },
+    { "time_label": "08:01", "employee_name": "John Smith", "event_type": "clock_in" },
+    { "time_label": "08:03", "employee_name": "Sarah Lee", "event_type": "clock_in" },
+    { "time_label": "08:45", "employee_name": "Sarah Lee", "event_type": "leave_applied" },
+    { "time_label": "10:15", "employee_name": "John Smith", "event_type": "leave_decided" },
+    { "time_label": "17:00", "employee_name": "John Smith", "event_type": "clock_out" }
+  ]
+}

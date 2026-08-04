@@ -14,6 +14,7 @@ $user = current_user();
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/tokens.css">
 <link rel="stylesheet" href="../assets/css/components/index.css">
+<link rel="stylesheet" href="../assets/css/admin.css">
 <!-- Reports tab PDF export — jsPDF + autoTable plugin, UMD builds. Loaded
      here only (not employee/portal.php, which has no PDF export). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js"></script>

@@ -1,0 +1,18 @@
+/* Employee-portal-only styles that don't split cleanly into shared/ui/components
+   because nothing else in the design reuses them. Ported from assets/style.css. */
+
+.clock-hero{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:24px;}
+.clock-time{ font-family:'Fraunces',serif; font-size:48px; font-weight:500; }
+.clock-sub{ color:var(--cream-dim); font-size:13px; margin-top:4px;}
+.clock-status{ display:flex; align-items:center; gap:10px; }
+.clock-actions{ display:flex; gap:12px; }
+
+/* Inline form feedback — no popup pattern for validation/success messages. */
+.form-error{ color:#e6b2a4; font-size:12.5px; margin-top:10px; }
+.form-success{ color:#c3c9a4; font-size:12.5px; margin-top:10px; }
+.form-field.invalid input, .form-field.invalid select, .form-field.invalid textarea{ border-color:var(--rust); }
+
+/* Password field + show/hide toggle */
+.password-field{ display:flex; align-items:center; gap:8px; }
+.password-field input{ flex:1; min-width:0; }
+.password-field .btn-icon{ flex-shrink:0; }

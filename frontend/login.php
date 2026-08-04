@@ -62,8 +62,8 @@ $error = $_GET['error'] ?? '';
       <input type="hidden" name="role" id="role-input" value="employee">
 
       <div class="role-toggle">
-        <button type="button" id="tab-employee" class="active" onclick="setLoginRole('employee')">Employee</button>
-        <button type="button" id="tab-admin" onclick="setLoginRole('admin')">Admin</button>
+        <button type="button" id="tab-employee" class="active" data-role="employee">Employee</button>
+        <button type="button" id="tab-admin" data-role="admin">Admin</button>
       </div>
 
       <div class="field">
@@ -80,14 +80,6 @@ $error = $_GET['error'] ?? '';
   </div>
 </div>
 
-<script>
-function setLoginRole(role){
-  document.getElementById('tab-employee').classList.toggle('active', role==='employee');
-  document.getElementById('tab-admin').classList.toggle('active', role==='admin');
-  document.getElementById('login-label-id').textContent = role==='employee' ? 'Employee ID or Email' : 'Admin Email';
-  document.getElementById('login-id').placeholder = role==='employee' ? 'e.g. jsmith@tapp.co' : 'e.g. admin@tapp.co';
-  document.getElementById('role-input').value = role;
-}
-</script>
+<script src="assets/js/app.js"></script>
 </body>
 </html>

@@ -3,7 +3,23 @@
 // to use data-panel attributes + event delegation instead of inline onclick=
 // handlers, matching the current build's pattern (see
 // ../Attendance-tracking-system/frontend/employee/src/main.js). Also wires
-// the hamburger nav toggle from that same current-build shell chrome.
+// the hamburger nav toggle from that same current-build shell chrome, and
+// login.php's role-toggle (ported from its own former inline onclick=).
+
+function setLoginRole(role) {
+  const employeeTab = document.getElementById('tab-employee');
+  const adminTab = document.getElementById('tab-admin');
+  const labelEl = document.getElementById('login-label-id');
+  const idEl = document.getElementById('login-id');
+  const roleInput = document.getElementById('role-input');
+  if (!employeeTab || !adminTab) return;
+
+  employeeTab.classList.toggle('active', role === 'employee');
+  adminTab.classList.toggle('active', role === 'admin');
+  if (labelEl) labelEl.textContent = role === 'employee' ? 'Employee ID or Email' : 'Admin Email';
+  if (idEl) idEl.placeholder = role === 'employee' ? 'e.g. jsmith@tapp.co' : 'e.g. admin@tapp.co';
+  if (roleInput) roleInput.value = role;
+}
 
 function switchTab(btn) {
   const shell = btn.closest('.app-shell');
@@ -58,6 +74,12 @@ document.addEventListener('click', (event) => {
   if (navItem) {
     switchTab(navItem);
     closeNavPanel();
+    return;
+  }
+
+  const roleBtn = event.target.closest('[data-role]');
+  if (roleBtn) {
+    setLoginRole(roleBtn.dataset.role);
     return;
   }
 

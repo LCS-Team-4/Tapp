@@ -370,53 +370,45 @@ function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Builds and submits a hidden POST form, then lets the redirect reload the
+// page — same full-reload pattern employee.js's clockAction()/leave form
+// use, so db.json (via the actions/*.php endpoints) is the one source of
+// truth instead of local DOM state.
+function postForm(action, fields) {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = action;
+  form.style.display = 'none';
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
+}
+
 // ---- Leave management: approve/decline ----
-// A decision moves the card from #leave-list into #leave-history-list
-// in place (relabeling its badge, appending the decided date, dropping the
-// Approve/Decline buttons) rather than rebuilding it from scratch — there's
-// no in-memory pendingLeaveRequests/leaveHistory array to re-render from,
-// and the card's own dataset attributes (set by data.php) are already the
-// source of truth Reports reads from, so moving the node keeps them intact.
+// Each decision now POSTs to actions/leave_decision.php instead of moving
+// the card between lists locally — the reload re-renders both lists (and
+// the counts) fresh from db.json.
 function wireLeave() {
   const panel = document.getElementById('a-leave');
   if (!panel) return;
   const list = panel.querySelector('#leave-list');
-  const pendingCountEl = panel.querySelector('#leave-pending-count');
-  const historyList = panel.querySelector('#leave-history-list');
-  const historyCountEl = panel.querySelector('#leave-history-count');
-  if (!list || !historyList) return;
+  if (!list) return;
 
-  function updatePendingCount() {
-    if (pendingCountEl) pendingCountEl.textContent = `${list.querySelectorAll('.leave-req-card').length} awaiting review`;
-  }
-  function updateHistoryCount() {
-    if (historyCountEl) historyCountEl.textContent = `${historyList.querySelectorAll('.leave-req-card').length} decided`;
-  }
-
-  function wireCard(card) {
-    card.querySelectorAll('[data-decision]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const decision = btn.dataset.decision; // 'approved' | 'declined'
-        const decidedAt = todayIso();
-
-        const subEl = card.querySelector('.lr-sub');
-        if (subEl) subEl.textContent = `${subEl.textContent} · Decided ${decidedAt}`;
-
-        const actions = card.querySelector('.leave-req-actions');
-        const label = decision === 'approved' ? 'Approved' : 'Declined';
-        actions.innerHTML = `<span class="badge badge-${decision}">${label}</span>`;
-
-        card.dataset.status = decision;
-        card.dataset.decidedAt = decidedAt;
-
-        historyList.prepend(card);
-        updatePendingCount();
-        updateHistoryCount();
+  list.querySelectorAll('[data-decision]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.leave-req-card');
+      postForm('actions/leave_decision.php', {
+        leave_id: card.dataset.leaveId,
+        decision: btn.dataset.decision,
       });
     });
-  }
-
-  list.querySelectorAll('.leave-req-card').forEach(wireCard);
+  });
 }
 
 // ---- Reports: tile selection + CSV/PDF export ----

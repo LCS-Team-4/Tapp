@@ -1,0 +1,9 @@
+/* Leave request card — shared by employee "Leave" tab and admin "Leave" tab.
+   Ported from assets/style.css */
+
+.leave-req-card{ display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-radius:11px; background:rgba(0,0,0,0.18); border:1px solid rgba(210,167,167,0.1); margin-bottom:10px;}
+.leave-req-card .lr-main{ display:flex; gap:14px; align-items:center; }
+.leave-req-card .lr-icon{ width:38px; height:38px; border-radius:10px; background:rgba(161,130,97,0.25); display:flex; align-items:center; justify-content:center;}
+.leave-req-card .lr-title{ font-weight:700; font-size:13.5px; }
+.leave-req-card .lr-sub{ font-size:11.5px; color:var(--cream-dim); margin-top:2px;}
+.leave-req-actions{ display:flex; gap:8px; align-items:center; }

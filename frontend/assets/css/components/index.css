@@ -1,0 +1,12 @@
+/* Barrel import so each portal only needs one <link> for all components. */
+@import './card.css';
+@import './badge.css';
+@import './button.css';
+@import './table.css';
+@import './form.css';
+@import './modal.css';
+@import './datepicker.css';
+@import './leave-card.css';
+@import './nav.css';
+@import './login.css';
+@import './segmented.css';

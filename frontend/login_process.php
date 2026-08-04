@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/lib/db.php';
 
 $role     = $_POST['role'] ?? 'employee';
 $loginId  = trim($_POST['login_id'] ?? '');
@@ -14,36 +15,28 @@ if ($loginId === '' || $password === '') {
     exit;
 }
 
-/*
- * ---------------------------------------------------------------
- * DEMO AUTH ONLY.
- * Replace this block with a real lookup, e.g.:
- *
- *   $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? AND role = ?');
- *   $stmt->execute([$loginId, $role]);
- *   $user = $stmt->fetch();
- *   if (!$user || !password_verify($password, $user['password_hash'])) {
- *       header('Location: login.php?error=1');
- *       exit;
- *   }
- * ---------------------------------------------------------------
- */
+// Demo-only credential check: every seed user in data/db.json shares the
+// password "Password123!" (see db.json's top-level comment) — this is
+// mock auth for a prototype, not a real login system.
+$user = db_find_user($loginId, $role);
+if (!$user || !password_verify($password, $user['password_hash'])) {
+    header('Location: login.php?error=1');
+    exit;
+}
 
 session_regenerate_id(true);
 $_SESSION['authenticated'] = true;
-$_SESSION['role']          = $role;
+$_SESSION['role']          = $user['role'];
+$_SESSION['user_name']     = $user['name'];
+$_SESSION['employee_id']   = $user['id'];
+$_SESSION['initials']      = $user['initials'];
+$_SESSION['role_label']    = $user['role'] === 'admin'
+    ? 'System Admin'
+    : $user['department'] . ' · ' . $user['id'];
 
-if ($role === 'admin') {
-    $_SESSION['user_name']   = 'Amara Osei';
-    $_SESSION['role_label']  = 'System Admin';
-    $_SESSION['employee_id'] = 'ADM-0001';
-    $_SESSION['initials']    = 'AO';
+if ($user['role'] === 'admin') {
     header('Location: admin/portal.php');
 } else {
-    $_SESSION['user_name']   = 'Sarah Lee';
-    $_SESSION['role_label']  = 'Design · EMP-0142';
-    $_SESSION['employee_id'] = 'EMP-0142';
-    $_SESSION['initials']    = 'SL';
     header('Location: employee/portal.php');
 }
 exit;

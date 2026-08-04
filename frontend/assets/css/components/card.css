@@ -1,0 +1,30 @@
+/* Card / grid / stat-card / section-head — ported from assets/style.css */
+
+.grid{ display:grid; gap:18px; }
+.grid-4{ grid-template-columns:repeat(4,1fr); }
+.grid-3{ grid-template-columns:repeat(3,1fr); }
+.grid-2{ grid-template-columns:2fr 1fr; }
+@media (max-width:1100px){ .grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:1fr;} .grid-2{grid-template-columns:1fr;} }
+
+.card{
+  background: linear-gradient(180deg, rgba(61,21,21,0.55), rgba(44,17,15,0.6));
+  border:1px solid rgba(210,167,167,0.14);
+  border-radius: var(--radius);
+  padding:22px;
+}
+.card h3{ font-size:15px; color:var(--cream); margin-bottom:4px; }
+.card .sub{ font-size:12px; color:var(--cream-dim); margin-bottom:16px;}
+
+.stat-card{ position:relative; overflow:hidden; }
+.stat-card .stat-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
+.stat-card .stat-num{ font-family:'Fraunces',serif; font-size:32px; font-weight:600; line-height:1; }
+.stat-card .stat-label{ font-size:12px; color:var(--cream-dim); margin-top:6px; font-weight:600; letter-spacing:0.2px;}
+.dot-green .stat-icon{ background:rgba(108,113,79,0.35); }
+.dot-blue .stat-icon{ background:rgba(210,167,167,0.28); }
+.dot-gold .stat-icon{ background:rgba(161,130,97,0.32); }
+.dot-red .stat-icon{ background:rgba(109,56,43,0.4); }
+
+.section-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:10px;}
+.section-head h3{ font-size:16px; }
+.divider{ height:1px; background:rgba(210,167,167,0.12); margin:22px 0; }
+.muted{ color:var(--cream-dim); font-size:13px; }

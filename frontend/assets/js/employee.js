@@ -1,0 +1,405 @@
+// employee.js — employee-portal-only interactivity, translated from the
+// current JS build's views/{profile,leave,history}.js + clockin.js into
+// plain DOM operations against portal.php's PHP-rendered markup. Uses the
+// global switchTab() defined in app.js (loaded first) for the "Quick
+// Actions" deep-links; does not touch app.js itself.
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const EYE_ICON = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_OFF_ICON = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.22 4.44"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
+const EDIT_ICON = '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/>';
+const CANCEL_ICON = '<path d="M18 6 6 18"/><path d="M6 6l12 12"/>';
+
+// Escapes user-typed text (leave reason, etc.) before it's interpolated into
+// an innerHTML template — the source leave.js does this unescaped, which is
+// fine for its hardcoded placeholder data but not once the value comes from
+// a live form, so this is a deliberate deviation, not just a straight port.
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+// ---- Profile sub-tabs (Account / Leave / History) ----
+
+function activateSubtab(container, subtabId) {
+  const btn = container.querySelector(`.segmented-item[data-subtab="${subtabId}"]`);
+  const panel = container.querySelector(`[data-subtab-panel="${subtabId}"]`);
+  if (!btn || !panel) return;
+  container.querySelectorAll('.segmented-item').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+  container.querySelectorAll('.subtab-panel').forEach((p) => p.classList.remove('active'));
+  panel.classList.add('active');
+}
+
+// Lets Dashboard's "Quick Actions" jump straight to a tab (and, for
+// Profile, a specific sub-tab) — mirrors main.js's switchPanelDirect().
+function switchPanelDirect(panelId, subtabId) {
+  const btn = document.querySelector(`.nav-item[data-panel="${panelId}"]`);
+  if (btn) switchTab(btn);
+  if (subtabId && panelId === 'e-profile') {
+    const panel = document.getElementById('e-profile');
+    if (panel) activateSubtab(panel, subtabId);
+  }
+}
+
+function wireProfileSubtabs() {
+  const profilePanel = document.getElementById('e-profile');
+  if (!profilePanel) return;
+  profilePanel.querySelectorAll('.segmented-item').forEach((btn) => {
+    btn.addEventListener('click', () => activateSubtab(profilePanel, btn.dataset.subtab));
+  });
+}
+
+function wireDashboardDeepLinks() {
+  document.querySelectorAll('[data-goto]').forEach((btn) => {
+    btn.addEventListener('click', () => switchPanelDirect(btn.dataset.goto, btn.dataset.subtab));
+  });
+}
+
+// ---- Attendance: clock in/out ----
+// Ported from clockin.js's clockAction(): flips the status badge only, no
+// persistence (front-end only, same as the original prototype).
+
+function clockAction(type) {
+  const badge = document.getElementById('clock-badge');
+  if (!badge) return;
+  if (type === 'out') {
+    badge.textContent = 'Clocked Out';
+    badge.className = 'badge badge-onsite';
+  } else {
+    badge.textContent = 'Clocked In';
+    badge.className = 'badge badge-present';
+  }
+}
+
+function wireClockButtons() {
+  document.getElementById('btn-clockin')?.addEventListener('click', () => clockAction('in'));
+  document.getElementById('btn-clockout')?.addEventListener('click', () => clockAction('out'));
+}
+
+// ---- Profile: Account form + password change + show/hide toggles ----
+
+function wireAccountForm() {
+  const nameEl = document.getElementById('profile-name');
+  const emailEl = document.getElementById('profile-email');
+  const nameWrap = document.getElementById('field-profile-name');
+  const emailWrap = document.getElementById('field-profile-email');
+  const errorEl = document.getElementById('profile-save-error');
+  const successEl = document.getElementById('profile-save-success');
+  const saveBtn = document.getElementById('btn-save-profile');
+  if (!saveBtn) return;
+
+  saveBtn.addEventListener('click', () => {
+    successEl.style.display = 'none';
+    const name = nameEl.value.trim();
+    const email = emailEl.value.trim();
+
+    const nameEmpty = !name;
+    const emailEmpty = !email;
+    nameWrap?.classList.toggle('invalid', nameEmpty);
+    emailWrap?.classList.toggle('invalid', emailEmpty);
+
+    if (nameEmpty || emailEmpty) {
+      errorEl.textContent = 'Full Name and Email are required.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+
+    // Front-end only — no PATCH /api/employees/{id} endpoint yet.
+    const whoEl = document.querySelector('.topbar .who');
+    if (whoEl) whoEl.textContent = name;
+
+    successEl.style.display = 'block';
+  });
+}
+
+function wirePasswordForm() {
+  const currentEl = document.getElementById('pwd-current');
+  const newEl = document.getElementById('pwd-new');
+  const confirmEl = document.getElementById('pwd-confirm');
+  const errorEl = document.getElementById('profile-password-error');
+  const successEl = document.getElementById('profile-password-success');
+  const updateBtn = document.getElementById('btn-update-password');
+  if (!updateBtn) return;
+
+  updateBtn.addEventListener('click', () => {
+    successEl.style.display = 'none';
+
+    if (!currentEl.value) {
+      errorEl.textContent = 'Current Password is required.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    if (!newEl.value || newEl.value !== confirmEl.value) {
+      errorEl.textContent = 'New Password and Confirm New Password must match.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+
+    // Front-end only — no PATCH /api/auth/password endpoint yet.
+    currentEl.value = '';
+    newEl.value = '';
+    confirmEl.value = '';
+    successEl.style.display = 'block';
+  });
+}
+
+function wirePasswordToggles() {
+  document.querySelectorAll('.pw-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      if (!input) return;
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${isHidden ? EYE_OFF_ICON : EYE_ICON}</svg>`;
+      btn.title = isHidden ? 'Hide password' : 'Show password';
+      btn.setAttribute('aria-label', btn.title);
+    });
+  });
+}
+
+// ---- Profile: Leave sub-tab (form + status list) ----
+
+function leaveIconStroke(status) {
+  if (status === 'approved') return '#6C714F';
+  if (status === 'declined') return '#6D382B';
+  return '#D2A7A7'; // pending
+}
+
+function leaveIconPath(status) {
+  if (status === 'declined') {
+    return '<path d="M12 3v6M12 21c-5-2-8-6-8-11 3 0 6 1.5 8 5 2-3.5 5-5 8-5 0 5-3 9-8 11Z"/>';
+  }
+  return '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>';
+}
+
+// Renders leave_requests.start_date/end_date (ISO dates) as "15 – 17 Jul" /
+// single-day "2 Jun" — same output as the source's formatDateRange().
+function formatDateRange(startDate, endDate) {
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const [ey, em, ed] = endDate.split('-').map(Number);
+  if (startDate === endDate) return `${sd} ${MONTH_NAMES[sm - 1]}`;
+  if (sy === ey && sm === em) return `${sd} – ${ed} ${MONTH_NAMES[sm - 1]}`;
+  return `${sd} ${MONTH_NAMES[sm - 1]} – ${ed} ${MONTH_NAMES[em - 1]}`;
+}
+
+// Builds a leave-req-card DOM node for a new/edited request. Raw fields
+// (leave_type/start_date/end_date/reason) are stored as dataset attributes
+// so a later "Edit" click can read them back — there's no in-memory
+// leaveRequests array anymore now that PHP renders the initial list once,
+// so the DOM itself is the source of truth for client-side edits.
+function buildLeaveCard(req) {
+  const card = document.createElement('div');
+  card.className = 'leave-req-card';
+  card.dataset.leaveId = String(req.leave_id);
+  card.dataset.leaveType = req.leave_type;
+  card.dataset.startDate = req.start_date;
+  card.dataset.endDate = req.end_date;
+  card.dataset.reason = req.reason;
+
+  const stroke = leaveIconStroke(req.status);
+  const statusLabel = req.status.charAt(0).toUpperCase() + req.status.slice(1);
+  const actions = req.status === 'pending' ? `
+      <button class="btn-icon" data-leave-action="edit" data-id="${req.leave_id}" title="Edit request" aria-label="Edit request" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${EDIT_ICON}</svg>
+      </button>
+      <button class="btn-icon" data-leave-action="cancel" data-id="${req.leave_id}" title="Cancel request" aria-label="Cancel request" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${CANCEL_ICON}</svg>
+      </button>` : '';
+
+  card.innerHTML = `
+    <div class="lr-main">
+      <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.8">${leaveIconPath(req.status)}</svg></div>
+      <div>
+        <div class="lr-title">${escapeHtml(req.type_label)}</div>
+        <div class="lr-sub">${escapeHtml(formatDateRange(req.start_date, req.end_date))} · ${escapeHtml(req.reason)}</div>
+      </div>
+    </div>
+    <div class="leave-req-actions">
+      <span class="badge badge-${req.status}">${statusLabel}</span>${actions}
+    </div>
+  `;
+  return card;
+}
+
+// Ported from assets/app.js's submitLeave(): shows an alert on success (no
+// backend to submit to yet). Also validates required fields inline and
+// supports editing/cancelling a pending request in place, same as leave.js.
+function wireLeaveForm() {
+  const panel = document.querySelector('[data-subtab-panel="leave"]');
+  if (!panel) return;
+  const typeEl = panel.querySelector('#leave-type');
+  const startEl = panel.querySelector('#leave-start');
+  const endEl = panel.querySelector('#leave-end');
+  const reasonEl = panel.querySelector('#leave-reason');
+  const errorEl = panel.querySelector('#leave-form-error');
+  const submitBtn = panel.querySelector('#btn-submit-leave');
+  const listEl = panel.querySelector('#leave-status-list');
+  if (!submitBtn || !listEl) return;
+
+  const fieldWrappers = {
+    type: panel.querySelector('#field-leave-type'),
+    start: panel.querySelector('#field-leave-start'),
+    end: panel.querySelector('#field-leave-end'),
+    reason: panel.querySelector('#field-leave-reason'),
+  };
+
+  const initialMin = startEl.min;
+  let editingId = null;
+
+  function clearFieldErrors() {
+    Object.values(fieldWrappers).forEach((el) => el?.classList.remove('invalid'));
+    if (errorEl) errorEl.style.display = 'none';
+  }
+
+  function validate() {
+    const fields = [
+      [typeEl, fieldWrappers.type],
+      [startEl, fieldWrappers.start],
+      [endEl, fieldWrappers.end],
+      [reasonEl, fieldWrappers.reason],
+    ];
+    let valid = true;
+    fields.forEach(([el, wrapper]) => {
+      const empty = !el.value.trim();
+      wrapper?.classList.toggle('invalid', empty);
+      if (empty) valid = false;
+    });
+    if (errorEl) errorEl.style.display = valid ? 'none' : 'block';
+    return valid;
+  }
+
+  function resetForm() {
+    typeEl.selectedIndex = 0;
+    startEl.value = '';
+    endEl.value = '';
+    endEl.min = initialMin;
+    reasonEl.value = '';
+    editingId = null;
+    submitBtn.textContent = 'Submit Request';
+    clearFieldErrors();
+  }
+
+  function nextLeaveId() {
+    let max = 0;
+    listEl.querySelectorAll('[data-leave-id]').forEach((card) => {
+      max = Math.max(max, Number(card.dataset.leaveId));
+    });
+    return max + 1;
+  }
+
+  function wireCardActions(card) {
+    card.querySelector('[data-leave-action="cancel"]')?.addEventListener('click', () => {
+      if (!confirm('Cancel this leave request?')) return;
+      const id = Number(card.dataset.leaveId);
+      card.remove();
+      if (editingId === id) resetForm();
+    });
+    card.querySelector('[data-leave-action="edit"]')?.addEventListener('click', () => {
+      editingId = Number(card.dataset.leaveId);
+      typeEl.value = card.dataset.leaveType;
+      startEl.value = card.dataset.startDate;
+      endEl.min = startEl.value;
+      endEl.value = card.dataset.endDate;
+      reasonEl.value = card.dataset.reason;
+      submitBtn.textContent = 'Update Request';
+      clearFieldErrors();
+    });
+  }
+
+  listEl.querySelectorAll('.leave-req-card').forEach(wireCardActions);
+
+  // Self-service leave requests can't be backdated, and the end date can't
+  // be earlier than the start date — mirrors the source's datepicker
+  // minDate options via the native <input type="date">'s min attribute.
+  startEl.addEventListener('change', () => {
+    endEl.min = startEl.value || initialMin;
+    if (endEl.value && endEl.value < endEl.min) endEl.value = '';
+  });
+
+  submitBtn.addEventListener('click', () => {
+    if (!validate()) return;
+
+    const typeLabel = typeEl.options[typeEl.selectedIndex].text;
+    const reqData = {
+      leave_type: typeEl.value,
+      type_label: typeLabel,
+      start_date: startEl.value,
+      end_date: endEl.value,
+      reason: reasonEl.value.trim(),
+      status: 'pending',
+    };
+
+    if (editingId !== null) {
+      const existing = listEl.querySelector(`[data-leave-id="${editingId}"]`);
+      const newCard = buildLeaveCard({ ...reqData, leave_id: editingId });
+      wireCardActions(newCard);
+      existing?.replaceWith(newCard);
+    } else {
+      const newCard = buildLeaveCard({ ...reqData, leave_id: nextLeaveId() });
+      wireCardActions(newCard);
+      listEl.append(newCard);
+    }
+
+    resetForm();
+    alert('Leave request submitted — status set to Pending. An admin will be notified.');
+  });
+}
+
+// ---- Profile: History sub-tab (search + status filter) ----
+// Ported from history.js, but re-worked to filter the PHP-rendered <tr>
+// elements in place (toggling display) instead of re-rendering from a
+// JS-side data array, since data.php only rendered the table once server
+// side and there's no client-side attendanceHistory array to re-map.
+function wireHistory() {
+  const panel = document.querySelector('[data-subtab-panel="history"]');
+  if (!panel) return;
+  const searchEl = panel.querySelector('#history-search');
+  const statusEl = panel.querySelector('#history-status-filter');
+  const tbody = panel.querySelector('#history-tbody');
+  if (!searchEl || !statusEl || !tbody) return;
+
+  function applyFilters() {
+    const query = searchEl.value.trim().toLowerCase();
+    const status = statusEl.value;
+    const rows = tbody.querySelectorAll('tr[data-status]');
+    let anyVisible = false;
+
+    rows.forEach((row) => {
+      const dateLabel = (row.dataset.dateLabel || '').toLowerCase();
+      const matchesQuery = !query || dateLabel.includes(query);
+      const matchesStatus = !status || row.dataset.status === status;
+      const visible = matchesQuery && matchesStatus;
+      row.style.display = visible ? '' : 'none';
+      if (visible) anyVisible = true;
+    });
+
+    let emptyRow = tbody.querySelector('tr[data-empty-row]');
+    if (!anyVisible) {
+      if (!emptyRow) {
+        emptyRow = document.createElement('tr');
+        emptyRow.setAttribute('data-empty-row', '');
+        emptyRow.innerHTML = '<td colspan="5" class="muted">No matching records.</td>';
+        tbody.appendChild(emptyRow);
+      }
+      emptyRow.style.display = '';
+    } else if (emptyRow) {
+      emptyRow.style.display = 'none';
+    }
+  }
+
+  searchEl.addEventListener('input', applyFilters);
+  statusEl.addEventListener('change', applyFilters);
+}
+
+wireProfileSubtabs();
+wireDashboardDeepLinks();
+wireClockButtons();
+wireAccountForm();
+wirePasswordForm();
+wirePasswordToggles();
+wireLeaveForm();
+wireHistory();

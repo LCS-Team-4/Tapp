@@ -1,0 +1,62 @@
+/* Design tokens — palette, type scale, spacing.
+   Ported from _design-reference/tapp-php/assets/style.css: the ":root"
+   variable block plus the base reset/typography rules that apply everywhere. */
+
+:root{
+  --maroon-deep:#1c0908;
+  --maroon:#2c110f;
+  --maroon-light:#3D1515;
+  --rust:#6D382B;
+  --rust-light:#8a4a3a;
+  --olive:#6C714F;
+  --olive-light:#868c66;
+  --tan:#A18261;
+  --tan-light:#c1a480;
+  --pink:#D2A7A7;
+  --pink-deep:#b8807f;
+  --cream:#f3e9de;
+  --cream-dim:#cdb9ab;
+  --ink:#1c0e0c;
+  --radius:14px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+*{box-sizing:border-box; margin:0; padding:0;}
+
+body{
+  font-family:'Manrope', sans-serif;
+  background: var(--maroon-deep);
+  color: var(--cream);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+h1,h2,h3,.display{
+  font-family:'Fraunces', serif;
+  font-weight:600;
+  letter-spacing:0.2px;
+}
+
+.eyebrow{
+  text-transform:uppercase;
+  letter-spacing:2.5px;
+  font-size:11px;
+  color: var(--pink);
+  font-weight:700;
+}
+
+::selection{ background: var(--pink); color:var(--ink); }
+button{ font-family:inherit; cursor:pointer; border:none; }
+input, select, textarea{ font-family:inherit; }
+a{ color:inherit; }
+
+/* ---------- Botanical SVG motif (shared by login + sidebar brand) ---------- */
+.lotus-mark{ display:block; }
+.bg-lotus{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  opacity:0.14;
+}
+
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-thumb{ background:rgba(210,167,167,0.25); border-radius:10px; }
+::-webkit-scrollbar-track{ background:transparent; }

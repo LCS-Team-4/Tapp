@@ -1,0 +1,18 @@
+/* Segmented sub-tab bar — used inside a panel to switch between
+   sub-sections without adding new top-level nav items. Same visual
+   language as .nav-item (nav.css) but laid out horizontally. */
+
+.segmented{
+  display:inline-flex; gap:4px; padding:4px; margin-bottom:22px;
+  background:rgba(210,167,167,0.08); border-radius:calc(var(--radius) - 4px);
+}
+.segmented-item{
+  padding:9px 18px; border-radius:calc(var(--radius) - 8px);
+  color:var(--cream-dim); font-size:13px; font-weight:600; background:transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.segmented-item:hover{ color:var(--cream); }
+.segmented-item.active{ background:var(--pink); color:var(--ink); }
+
+.subtab-panel{ display:none; }
+.subtab-panel.active{ display:block; animation: fadeIn 0.3s ease; }

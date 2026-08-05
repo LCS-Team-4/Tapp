@@ -326,6 +326,33 @@ $user = current_user();
             <div class="settings-row"><div><div class="sr-label">Raspberry Pi Device</div><div class="sr-sub"><?= htmlspecialchars($terminalStatus['device_name']) ?> · <?= htmlspecialchars($terminalStatus['network_label']) ?></div></div><span class="badge badge-present"><?= $terminalStatus['status'] === 'connected' ? 'Connected' : 'Disconnected' ?></span></div>
           </div>
         </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="section-head"><h3>Manage Admins</h3></div>
+          <p class="muted">Create new admin accounts for trusted colleagues.</p>
+          <div style="margin-top:12px; display:flex; gap:10px;">
+            <button class="btn btn-pink" id="btn-open-invite-admin" type="button">Invite Admin</button>
+          </div>
+
+          <div class="modal-overlay" id="modal-invite-admin">
+            <div class="modal">
+              <h3>Invite Admin</h3>
+              <div class="form-field"><label>Full Name</label><input type="text" id="invite-admin-name" placeholder="e.g. Jordan Miles"></div>
+              <div class="form-row" style="margin-top:10px;">
+                <div class="form-field"><label>Employee ID</label><input type="text" id="invite-admin-employee-id" placeholder="e.g. ADM-001"></div>
+                <div class="form-field"><label>Email</label><input type="email" id="invite-admin-email" placeholder="admin@tapp.co"></div>
+              </div>
+              <div class="form-row" style="margin-top:10px;">
+                <div class="form-field"><label>Password</label><input type="password" id="invite-admin-password" placeholder="••••••••"></div>
+                <div class="form-field"><label>Confirm Password</label><input type="password" id="invite-admin-password-confirm" placeholder="••••••••"></div>
+              </div>
+              <p class="form-error" id="invite-admin-error" style="display:none;">Please fill all fields and ensure passwords match.</p>
+              <div style="display:flex; gap:10px; margin-top:16px;">
+                <button class="btn btn-pink" id="btn-invite-admin-create" type="button">Create Admin</button>
+                <button class="btn btn-outline" id="btn-invite-admin-cancel" type="button">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

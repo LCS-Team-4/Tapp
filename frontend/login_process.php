@@ -15,10 +15,14 @@ if ($loginId === '' || $password === '') {
     exit;
 }
 
-// Demo-only credential check: every seed user in data/db.json shares the
-// password "Password123!" (see db.json's top-level comment) — this is
-// mock auth for a prototype, not a real login system.
-$user = db_find_user($loginId, $role);
+try {
+    $user = db_find_user($loginId, $role);
+} catch (Throwable $e) {
+    error_log('Login error: ' . $e->getMessage());
+    header('Location: login.php?error=2');
+    exit;
+}
+
 if (!$user || !password_verify($password, $user['password_hash'])) {
     header('Location: login.php?error=1');
     exit;
@@ -28,11 +32,11 @@ session_regenerate_id(true);
 $_SESSION['authenticated'] = true;
 $_SESSION['role']          = $user['role'];
 $_SESSION['user_name']     = $user['name'];
-$_SESSION['employee_id']   = $user['id'];
-$_SESSION['initials']      = $user['initials'];
+$_SESSION['employee_id']   = $user['employee_id'];
+$_SESSION['initials']      = db_mysql_compute_initials($user['name']);
 $_SESSION['role_label']    = $user['role'] === 'admin'
     ? 'System Admin'
-    : $user['department'] . ' · ' . $user['id'];
+    : ($user['department'] ? $user['department'] . ' · ' : '') . $user['employee_id'];
 
 if ($user['role'] === 'admin') {
     header('Location: admin/portal.php');

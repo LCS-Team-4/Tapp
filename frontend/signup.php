@@ -1,20 +1,21 @@
 <?php
 require_once __DIR__ . '/auth.php';
 
-// If already logged in, skip straight to the right portal
+// Redirect already logged-in users to their portal.
 if (!empty($_SESSION['authenticated'])) {
     header('Location: ' . ($_SESSION['role'] === 'admin' ? '/admin/portal.php' : '/employee/portal.php'));
     exit;
 }
 
 $error = $_GET['error'] ?? '';
+$success = $_GET['success'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAPP — Sign In</title>
+<title>TAPP — Sign Up</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/tokens.css">
@@ -54,34 +55,56 @@ $error = $_GET['error'] ?? '';
 
     <?php if ($error === '1'): ?>
       <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
-        Please enter both an ID/email and a password.
+        Please fill in every field and make sure passwords match.
       </p>
     <?php elseif ($error === '2'): ?>
       <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
-        We were unable to process your login right now. Please try again later.
+        That email or employee ID already exists. Please sign in or use a different identity.
+      </p>
+    <?php elseif ($error === '3'): ?>
+      <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
+        We could not create your account right now. Please try again later.
+      </p>
+    <!-- admin-code error removed since admin code is no longer required -->
+    <?php elseif ($success === '1'): ?>
+      <p style="background:rgba(108,113,79,0.15); color:#D2A7A7; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
+        Account created successfully. Please sign in.
       </p>
     <?php endif; ?>
 
-    <form method="POST" action="login_process.php" id="login-form">
-      <input type="hidden" name="role" id="role-input" value="employee">
-
-      <div class="role-toggle">
-        <button type="button" id="tab-employee" class="active" data-role="employee">Employee</button>
-        <button type="button" id="tab-admin" data-role="admin">Admin</button>
-      </div>
-
+    <form method="POST" action="signup_process.php" id="signup-form">
       <div class="field">
-        <label id="login-label-id">Employee ID or Email</label>
-        <input name="login_id" id="login-id" type="text" placeholder="e.g. jsmith@tapp.co">
+        <label>Full Name</label>
+        <input name="name" type="text" placeholder="e.g. Sarah Lee">
       </div>
+      <div class="field">
+        <label>Sign up as</label>
+        <div style="display:flex; gap:10px; margin-top:6px;">
+          <label style="display:flex; gap:6px; align-items:center;"><input type="radio" name="role" value="employee" checked> Employee</label>
+          <label style="display:flex; gap:6px; align-items:center;"><input type="radio" name="role" value="admin"> Admin</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Employee ID</label>
+        <input name="employee_id" type="text" placeholder="e.g. EMP-0142">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input name="email" type="email" placeholder="e.g. sarah.lee@tapp.co">
+      </div>
+      <!-- Admin code removed: users can now select role directly -->
       <div class="field">
         <label>Password</label>
         <input name="password" type="password" placeholder="••••••••">
       </div>
-      <button type="submit" class="btn-primary">Sign In</button>
+      <div class="field">
+        <label>Confirm Password</label>
+        <input name="password_confirm" type="password" placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn-primary">Create Account</button>
     </form>
-    <p class="login-hint">Prototype demo — sign in as either role to preview the portal</p>
-    <p class="login-hint">New here? <a href="signup.php">Create an account</a></p>
+
+    <p class="login-hint">Already have an account? <a href="login.php">Sign in</a></p>
   </div>
 </div>
 

@@ -1,19 +1,30 @@
-from mfrc522 import SimpleMFRC522
-import RPi.GPIO as GPIO
-from config import RFID_RST_PIN
-
+from evdev import InputDevice, categorize, ecodes, list_devices
 
 
 class RFIDReader:
-
 
     # INITIALIZE RFID READER
 
     def __init__(self):
 
-        self.reader = SimpleMFRC522()
+        self.device = None
+
+        # Find the USB RFID Reader automatically
+        for path in list_devices():
+
+            device = InputDevice(path)
+
+            if device.name == "IC Reader IC Reader":
+
+                self.device = device
+                break
+
+        if self.device is None:
+
+            raise Exception("RFID Reader Not Found")
 
         print("RFID Reader Ready")
+        print(f"Using Device: {self.device.path}")
 
 
 
@@ -21,33 +32,48 @@ class RFIDReader:
 
     def read_card(self):
 
+        print("Waiting for RFID card...")
+
+        keys = {
+
+            ecodes.KEY_0: "0",
+            ecodes.KEY_1: "1",
+            ecodes.KEY_2: "2",
+            ecodes.KEY_3: "3",
+            ecodes.KEY_4: "4",
+            ecodes.KEY_5: "5",
+            ecodes.KEY_6: "6",
+            ecodes.KEY_7: "7",
+            ecodes.KEY_8: "8",
+            ecodes.KEY_9: "9"
+
+        }
+
+        uid = ""
+
         try:
 
-            print("Waiting for RFID card...")
+            for event in self.device.read_loop():
 
+                if event.type == ecodes.EV_KEY:
 
-            # Wait until card is detected
-            uid, text = self.reader.read()
+                    key = categorize(event)
 
+                    if key.keystate == key.key_down:
 
-            print(
-                "Card UID:",
-                uid
-            )
+                        if key.scancode == ecodes.KEY_ENTER:
 
+                            print("Card UID:", uid)
 
-            return str(uid)
+                            return uid
 
+                        elif key.scancode in keys:
 
+                            uid += keys[key.scancode]
 
         except Exception as error:
 
-
-            print(
-                "RFID Error:",
-                error
-            )
-
+            print("RFID Error:", error)
 
             return None
 
@@ -57,8 +83,4 @@ class RFIDReader:
 
     def cleanup(self):
 
-        GPIO.cleanup()
-
-        print(
-            "RFID Reader Closed"
-        )
+        print("RFID Reader Closed")

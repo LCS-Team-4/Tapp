@@ -1,12 +1,16 @@
+import os
+from dotenv import load_dotenv
+load_dotenv() 
+
 # COMPANY SETTINGS
 COMPANY_NAME = "TAPP"
 
 # DATABASE SETTINGS
-DB_HOST = 
-DB_PORT = 
-DB_NAME = 
-DB_USER = 
-DB_PASSWORD = 
+PI_DB_HOST=os.getenv("DB_HOST")
+PI_DB_PORT=os.getenv("DB_PORT")
+PI_DB_NAME=os.getenv("DB_NAME")
+PI_DB_USER=os.getenv("DB_USER")
+PI_DB_PASSWORD=os.getenv("DB_PASSWORD")
 
 # RFID SETTINGS
 # Reset Pin (GPIO)
@@ -26,5 +30,5 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # LOGGING
 LOG_FILE = "logs/attendance.log"
-
+LOG_LEVEL = "INFO"
 

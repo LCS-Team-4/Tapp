@@ -2,11 +2,11 @@ import mysql.connector
 from mysql.connector import Error
 
 from config import (
-    DB_HOST,
-    DB_PORT,
-    DB_NAME,
-    DB_USER,
-    DB_PASSWORD
+    PI_DB_HOST,
+    PI_DB_PORT,
+    PI_DB_NAME,
+    PI_DB_USER,
+    PI_DB_PASSWORD
 )
 
 
@@ -26,11 +26,11 @@ class Database:
 
             self.connection = mysql.connector.connect(
 
-                host=DB_HOST,
-                port=DB_PORT,
-                database=DB_NAME,
-                user=DB_USER,
-                password=DB_PASSWORD
+                host=PI_DB_HOST,
+                port=PI_DB_PORT,
+                database=PI_DB_NAME,
+                user=PI_DB_USER,
+                password=PI_DB_PASSWORD
 
             )
 
@@ -78,7 +78,7 @@ class Database:
         query = """
 
         SELECT *
-        FROM employees
+        FROM users
         WHERE rfid_uid = %s
 
         """
@@ -90,10 +90,10 @@ class Database:
         )
 
 
-        employee = self.cursor.fetchone()
+        user = self.cursor.fetchone()
 
 
-        return employee
+        return user
 
 
 
@@ -101,13 +101,13 @@ class Database:
     # IN = Working
     # OUT = Not working
 
-    def get_employee_status(self, employee_id):
+    def get_user_status(self, employee_id):
 
 
         query = """
 
         SELECT status
-        FROM employees
+        FROM users
         WHERE employee_id = %s
 
         """
@@ -143,7 +143,7 @@ class Database:
 
         query = """
 
-        UPDATE employees
+        UPDATE users
 
         SET status = %s
 
@@ -175,7 +175,7 @@ class Database:
 
         SELECT last_scan
 
-        FROM employees
+        FROM users
 
         WHERE employee_id = %s
 
@@ -211,7 +211,7 @@ class Database:
 
         query = """
 
-        UPDATE employees
+        UPDATE users
 
         SET last_scan = %s
 
@@ -290,7 +290,7 @@ class Database:
 
         SELECT employee_id
 
-        FROM employees
+        FROM users
 
         WHERE rfid_uid = %s
 

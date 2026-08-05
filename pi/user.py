@@ -1,4 +1,4 @@
-class Employee:
+class User:
 
 
     # CREATE EMPLOYEE OBJECT

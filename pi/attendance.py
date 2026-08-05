@@ -21,12 +21,12 @@ class AttendanceManager:
         )
 
 
-        # Find employee
+        # Find user
 
-        employee = self.database.get_employee_by_uid(uid)
+        user = self.database.get_employee_by_uid(uid)
 
 
-        if not employee:
+        if not user:
 
             print(
                 " Unknown RFID Card"
@@ -36,12 +36,12 @@ class AttendanceManager:
 
 
 
-        employee_id = employee["employee_id"]
+        employee_id = user["employee_id"]
 
         name = (
-            employee["first_name"]
+            user["first_name"]
             + " "
-            + employee["last_name"]
+            + user["last_name"]
         )
 
 
@@ -60,13 +60,13 @@ class AttendanceManager:
                 " Please wait before scanning again"
             )
 
-            return False
+             return False
 
 
 
         # Check current status
 
-        status = employee["status"]
+        status = user["status"]
 
 
 

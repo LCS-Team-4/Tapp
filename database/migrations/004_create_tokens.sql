@@ -1,0 +1,8 @@
+-- PENDING — intentionally not written yet.
+--
+-- This table depends on the still-open decision in docs/spec.md §5: whether
+-- the clock-in credential is transmitted via NFC-tap-triggers-PWA, NFC write-
+-- to-tag, or (fallback) camera QR. Each shape needs a different token table
+-- (e.g. whether it stores a client-generated string vs. a server-signed HMAC
+-- payload, whether it's tied to a device_id from `devices`). Writing this
+-- migration now would mean guessing at that decision. Resolve §5 first.

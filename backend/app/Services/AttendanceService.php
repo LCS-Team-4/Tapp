@@ -2,141 +2,199 @@
 
 namespace App\Services;
 
-use App\Database\Connection;
 use App\Exceptions\ValidationException;
-use App\Models\Attendance;
 use App\Repositories\AttendanceRepository;
-use App\Repositories\SettingsRepository;
 
-// The tap state machine from docs/spec.md §6: first tap of the day clocks
-// in, second tap clocks out and resolves present/late, third tap is
-// rejected. Present/late resolution happens here, at clock-out — see §6 for
-// why, and how this relates to mark_absences.php's onsite sweep.
+// The hosted schema stores one row per scan event (action 'in'/'out').
+// The state machine: clock in creates an 'in' event, clock out creates an
+// 'out' event. The latest event determines current state.
 class AttendanceService
 {
     public function __construct(
         private readonly AttendanceRepository $attendanceRepository = new AttendanceRepository(),
-        private readonly SettingsRepository $settingsRepository = new SettingsRepository(),
     ) {
     }
 
-    public function redeem(int $userId, string $source): array
+    // Toggle clock in/out for the given employee_id (web portal action).
+    public function toggle(string $employeeId, string $method = 'manual'): array
     {
-        $workDate = date('Y-m-d');
-        $existing = $this->attendanceRepository->findByUserAndDate($userId, $workDate);
+        $latest = $this->attendanceRepository->findLatestEvent($employeeId);
 
-        if ($existing === null) {
-            $attendance = $this->attendanceRepository->createClockIn(
-                $userId,
-                $workDate,
-                new \DateTimeImmutable(),
-                $source
-            );
-
-            return ['action' => 'clocked_in', 'attendance' => $attendance];
+        if ($latest === null || $latest['action'] === 'out') {
+            $this->attendanceRepository->recordEvent($employeeId, 'in', $method);
+            return ['action' => 'clocked_in'];
         }
 
-        if ($existing->clockOut !== null) {
-            // Judgment call, not spec-derived: a third tap in one day is
-            // rejected outright rather than treated as a correction to the
-            // existing clock-out. Revisit if the team wants a
-            // correction/override path instead.
-            throw new ValidationException('Already clocked out for today');
-        }
-
-        $attendance = $this->resolveClockOut($existing, $workDate);
-
-        return ['action' => 'clocked_out', 'attendance' => $attendance];
+        $this->attendanceRepository->recordEvent($employeeId, 'out', $method);
+        return ['action' => 'clocked_out'];
     }
 
-    // Admin-only correction path for the rejected-third-tap case (docs/spec.md
-    // §6) — no self-service fix, only an admin can correct via this method.
-    // HTTP surface (the controller/route that will call this) is 6a's job,
-    // alongside EmployeeController/LeaveController — not built here.
-    public function correctRecord(
-        int $attendanceId,
-        int $adminUserId,
-        ?string $clockIn,
-        ?string $clockOut,
-        ?string $status
-    ): array {
-        $clockInDt = $clockIn !== null ? new \DateTimeImmutable($clockIn) : null;
-        $clockOutDt = $clockOut !== null ? new \DateTimeImmutable($clockOut) : null;
+    // Explicit clock-in — used by the Pi terminal's redeem path.
+    public function clockIn(string $employeeId, string $method = 'device'): array
+    {
+        $this->attendanceRepository->recordEvent($employeeId, 'in', $method);
+        return ['action' => 'clocked_in'];
+    }
 
-        if ($clockInDt !== null && $clockOutDt !== null && $clockOutDt <= $clockInDt) {
-            throw new ValidationException('Clock-out must be after clock-in');
+    // Explicit clock-out.
+    public function clockOut(string $employeeId, string $method = 'device'): array
+    {
+        $this->attendanceRepository->recordEvent($employeeId, 'out', $method);
+        return ['action' => 'clocked_out'];
+    }
+
+    // Determine the current status for an employee today:
+    // - 'onsite' if the latest event today was an 'in'
+    // - 'present' if the earliest 'in' and latest 'out' both exist
+    // - 'absent' if no events today
+    public function todayStatus(string $employeeId): array
+    {
+        $events = $this->attendanceRepository->findToday($employeeId);
+
+        if (count($events) === 0) {
+            return [
+                'status' => 'absent',
+                'clock_in' => null,
+                'clock_out' => null,
+                'total_hours' => null,
+                'week_hours_logged' => 0,
+                'week_hours_target' => 40,
+            ];
         }
 
-        // recordManualCorrection() and the conditional recordClockOut() below
-        // are two separate statements against the same row — wrapped in one
-        // transaction so a failure between them can't leave corrected_by/
-        // corrected_at stamped without the recomputed status/total_hours
-        // actually applied.
-        $pdo = Connection::get();
-        $pdo->beginTransaction();
+        $first = $events[0];
+        $last = $events[count($events) - 1];
 
-        try {
-            $attendance = $this->attendanceRepository->recordManualCorrection(
-                $attendanceId,
-                $adminUserId,
-                $clockInDt,
-                $clockOutDt,
-                $status
-            );
+        $clockIn = $first['action'] === 'in' ? $this->formatTime($first['attendance_time']) : null;
+        $clockOut = null;
+        $status = 'onsite';
 
-            // Admin didn't give an explicit status override, and the row now
-            // has both times — resolve present/late the same way the normal
-            // clock-out path does, rather than leaving a stale status behind.
-            if ($status === null && $attendance->clockIn !== null && $attendance->clockOut !== null) {
-                $resolved = $this->resolveStatusAndHours(
-                    $attendance->workDate,
-                    new \DateTimeImmutable($attendance->clockIn),
-                    new \DateTimeImmutable($attendance->clockOut)
-                );
+        // Find the last 'out' event
+        foreach (array_reverse($events) as $event) {
+            if ($event['action'] === 'out') {
+                $clockOut = $this->formatTime($event['attendance_time']);
+                $status = 'present';
+                break;
+            }
+        }
 
-                $attendance = $this->attendanceRepository->recordClockOut(
-                    $attendance->id,
-                    new \DateTimeImmutable($attendance->clockOut),
-                    $resolved['status'],
-                    $resolved['totalHours']
-                );
+        $hours = null;
+        if ($clockIn !== null && $clockOut !== null) {
+            $hours = $this->attendanceRepository->computeDailyHours($employeeId, date('Y-m-d'));
+        }
+
+        return [
+            'status' => $status,
+            'clock_in' => $clockIn,
+            'clock_out' => $clockOut,
+            'total_hours' => $hours,
+            'week_hours_logged' => 0,
+            'week_hours_target' => 40,
+        ];
+    }
+
+    // Attendance history grouped by day for the employee history table.
+    public function history(string $employeeId, int $limit = 30): array
+    {
+        $events = $this->attendanceRepository->findHistory($employeeId, $limit);
+
+        // Group events by day
+        $byDay = [];
+        foreach ($events as $event) {
+            $day = substr($event['attendance_time'], 0, 10);
+            $byDay[$day][] = $event;
+        }
+
+        $history = [];
+        foreach ($byDay as $day => $dayEvents) {
+            $firstIn = null;
+            $lastOut = null;
+            foreach ($dayEvents as $event) {
+                if ($event['action'] === 'in' && $firstIn === null) {
+                    $firstIn = $event['attendance_time'];
+                }
+                if ($event['action'] === 'out') {
+                    $lastOut = $event['attendance_time'];
+                }
             }
 
-            $pdo->commit();
-        } catch (\Throwable $e) {
-            $pdo->rollBack();
-            throw $e;
+            $dt = new \DateTimeImmutable($day);
+            $history[] = [
+                'date_label' => $dt->format('D, j M'),
+                'clock_in' => $firstIn !== null ? substr($firstIn, 11, 5) : null,
+                'clock_out' => $lastOut !== null ? substr($lastOut, 11, 5) : null,
+                'total_hours' => $this->attendanceRepository->computeDailyHours($employeeId, $day),
+                'status' => $this->dayStatus($firstIn, $lastOut),
+            ];
         }
 
-        return ['action' => 'corrected', 'attendance' => $attendance];
+        return array_reverse($history);
     }
 
-    private function resolveClockOut(Attendance $existing, string $workDate): Attendance
+    // Feed of recent clock events for the admin dashboard.
+    public function feed(int $limit = 20): array
     {
-        $clockOut = new \DateTimeImmutable();
-        $resolved = $this->resolveStatusAndHours($workDate, new \DateTimeImmutable($existing->clockIn), $clockOut);
-
-        return $this->attendanceRepository->recordClockOut(
-            $existing->id,
-            $clockOut,
-            $resolved['status'],
-            $resolved['totalHours']
-        );
+        return array_map(function (array $event): array {
+            return [
+                'time_label' => substr($event['attendance_time'] ?? '', 11, 5) ?: '',
+                'employee_name' => $event['name'] ?? '',
+                'event_type' => $event['action'] === 'in' ? 'clock_in' : 'clock_out',
+            ];
+        }, $this->attendanceRepository->findRecentFeed($limit));
     }
 
-    // Shared by the normal clock-out path and correctRecord()'s recompute
-    // branch, so the present/late grace-period math exists in exactly one
-    // place.
-    private function resolveStatusAndHours(string $workDate, \DateTimeImmutable $clockIn, \DateTimeImmutable $clockOut): array
+    // Today's attendance rows for the admin monitoring table.
+    public function todayAll(): array
     {
-        $settings = $this->settingsRepository->get();
+        $events = $this->attendanceRepository->findTodayAll();
 
-        $deadline = (new \DateTimeImmutable($workDate . ' ' . $settings['working_hours_start']))
-            ->modify('+' . (int) $settings['late_threshold_minutes'] . ' minutes');
+        // Group by employee_id
+        $byEmployee = [];
+        foreach ($events as $event) {
+            $empId = $event['employee_id'];
+            $byEmployee[$empId][] = $event;
+        }
 
-        $status = $clockIn <= $deadline ? 'present' : 'late';
-        $totalHours = round(($clockOut->getTimestamp() - $clockIn->getTimestamp()) / 3600, 2);
+        $rows = [];
+        foreach ($byEmployee as $empId => $empEvents) {
+            $firstIn = null;
+            $lastOut = null;
+            foreach ($empEvents as $event) {
+                if ($event['action'] === 'in' && $firstIn === null) {
+                    $firstIn = $event['attendance_time'];
+                }
+                if ($event['action'] === 'out') {
+                    $lastOut = $event['attendance_time'];
+                }
+            }
 
-        return ['status' => $status, 'totalHours' => $totalHours];
+            $rows[] = [
+                'employee_id' => $empId,
+                'name' => $empEvents[0]['name'] ?? '',
+                'clock_in' => $firstIn !== null ? substr($firstIn, 11, 5) : null,
+                'clock_out' => $lastOut !== null ? substr($lastOut, 11, 5) : null,
+                'total_hours' => null,
+                'status' => $this->dayStatus($firstIn, $lastOut),
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function dayStatus(?string $clockIn, ?string $clockOut): string
+    {
+        if ($clockIn === null) {
+            return 'absent';
+        }
+        if ($clockOut === null) {
+            return 'onsite';
+        }
+        return 'present';
+    }
+
+    private function formatTime(string $datetime): string
+    {
+        $dt = new \DateTimeImmutable($datetime);
+        return $dt->format('h:i A');
     }
 }

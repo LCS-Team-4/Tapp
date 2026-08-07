@@ -1,0 +1,1 @@
+{"version":2,"defects":[],"times":{"Tests\\Unit\\LeaveCompatibilityTest::testRouterSupportsPutForAdminLeaveRoutes":0.006,"Tests\\Unit\\LeaveCompatibilityTest::testSubmitValidatorAcceptsFrontendLeavePayload":0.001,"Tests\\Unit\\LeaveCompatibilityTest::testSubmitValidatorAcceptsRequestTypePayload":0,"Tests\\Unit\\LeaveCompatibilityTest::testStatusValidatorAcceptsDeclinedStatus":0}}

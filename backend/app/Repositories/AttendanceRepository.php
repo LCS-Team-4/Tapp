@@ -3,116 +3,112 @@
 namespace App\Repositories;
 
 use App\Database\Connection;
-use App\Models\Attendance;
 use PDO;
 
-// The only place SQL for `attendance` lives.
+// Attendance repository adapted for the hosted schema: one row per scan
+// event (action 'in' or 'out'), indexed by employee_id string, with an
+// attendance_time timestamp.
 class AttendanceRepository
 {
-    public function findByUserAndDate(int $userId, string $workDate): ?Attendance
+    // Records a clock-in or clock-out event in the hosted schema's action-log.
+    public function recordEvent(string $employeeId, string $action, string $method = 'manual'): int
     {
         $stmt = Connection::get()->prepare(
-            $this->baseQuery() . ' WHERE user_id = ? AND work_date = ?'
+            'INSERT INTO attendance (employee_id, action, attendance_time, check_in_method, sync_status, location, device_info) '
+            . "VALUES (?, ?, NOW(), ?, 'synced', 'Main Entrance', 'Web Portal')"
         );
-        $stmt->execute([$userId, $workDate]);
+        $stmt->execute([$employeeId, $action, $method]);
+
+        return (int) Connection::get()->lastInsertId();
+    }
+
+    // Returns the most recent clock event for a given employee.
+    public function findLatestEvent(string $employeeId): ?array
+    {
+        $stmt = Connection::get()->prepare(
+            'SELECT id, employee_id, action, attendance_time, check_in_method '
+            . 'FROM attendance WHERE employee_id = ? ORDER BY attendance_time DESC, id DESC LIMIT 1'
+        );
+        $stmt->execute([$employeeId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        return $row ? $this->hydrate($row) : null;
+        return $row === false ? null : $row;
     }
 
-    // Relies on the UNIQUE (user_id, work_date) constraint as the natural
-    // guard against duplicate clock-in rows. A constraint violation surfaces
-    // as a real PDOException rather than being swallowed here, since it
-    // should never actually fire — AttendanceService checks for an existing
-    // row before calling this.
-    public function createClockIn(int $userId, string $workDate, \DateTimeImmutable $clockIn, string $source): Attendance
-    {
-        $pdo = Connection::get();
-        $stmt = $pdo->prepare(
-            'INSERT INTO attendance (user_id, work_date, clock_in, status, source) '
-            . "VALUES (?, ?, ?, 'onsite', ?)"
-        );
-        $stmt->execute([$userId, $workDate, $clockIn->format('Y-m-d H:i:s'), $source]);
-
-        return $this->findById((int) $pdo->lastInsertId());
-    }
-
-    public function recordClockOut(int $attendanceId, \DateTimeImmutable $clockOut, string $status, float $totalHours): Attendance
+    // Returns today's events for one employee.
+    public function findToday(string $employeeId): array
     {
         $stmt = Connection::get()->prepare(
-            'UPDATE attendance SET clock_out = ?, status = ?, total_hours = ? WHERE id = ?'
+            'SELECT id, employee_id, action, attendance_time, check_in_method '
+            . "FROM attendance WHERE employee_id = ? AND DATE(attendance_time) = CURDATE() ORDER BY attendance_time ASC, id ASC"
         );
-        $stmt->execute([$clockOut->format('Y-m-d H:i:s'), $status, $totalHours, $attendanceId]);
+        $stmt->execute([$employeeId]);
 
-        return $this->findById($attendanceId);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // Admin-only correction (docs/spec.md §6): only overwrites clock_in/
-    // clock_out/status for whichever of the three the admin actually
-    // supplied, via COALESCE — a correction to just the exit time leaves
-    // the entry time alone. corrected_by/corrected_at/source are always
-    // stamped, regardless of which fields changed.
-    //
-    // Deliberately does NOT recompute status/total_hours itself — that's
-    // grace-period business logic (needs settings), which belongs in
-    // AttendanceService alongside the identical math the normal clock-out
-    // path already uses. AttendanceService::correctRecord() makes a
-    // follow-up recordClockOut() call when a recompute is warranted.
-    public function recordManualCorrection(
-        int $attendanceId,
-        int $adminUserId,
-        ?\DateTimeImmutable $clockIn,
-        ?\DateTimeImmutable $clockOut,
-        ?string $status
-    ): Attendance {
+    // Returns today's events for all employees, joined with user names.
+    public function findTodayAll(): array
+    {
+        $stmt = Connection::get()->query(
+            'SELECT a.id, a.employee_id, a.action, a.attendance_time, a.check_in_method, '
+            . "CONCAT_WS(' ', u.first_name, u.last_name) AS name "
+            . 'FROM attendance a '
+            . 'LEFT JOIN users u ON u.employee_id = a.employee_id '
+            . 'WHERE DATE(a.attendance_time) = CURDATE() '
+            . 'ORDER BY a.attendance_time ASC, a.id ASC'
+        );
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Returns recent attendance history for one employee.
+    public function findHistory(string $employeeId, int $limit = 30): array
+    {
         $stmt = Connection::get()->prepare(
-            'UPDATE attendance SET '
-            . 'clock_in = COALESCE(?, clock_in), '
-            . 'clock_out = COALESCE(?, clock_out), '
-            . 'status = COALESCE(?, status), '
-            . "corrected_by = ?, corrected_at = ?, source = 'manual' "
-            . 'WHERE id = ?'
+            'SELECT id, employee_id, action, attendance_time, check_in_method '
+            . 'FROM attendance WHERE employee_id = ? ORDER BY attendance_time DESC, id DESC LIMIT ?'
         );
-        $stmt->execute([
-            $clockIn?->format('Y-m-d H:i:s'),
-            $clockOut?->format('Y-m-d H:i:s'),
-            $status,
-            $adminUserId,
-            (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-            $attendanceId,
-        ]);
+        $stmt->bindValue(1, $employeeId, PDO::PARAM_STR);
+        $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+        $stmt->execute();
 
-        return $this->findById($attendanceId);
+        return array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    private function findById(int $id): Attendance
+    // Recent events for the admin live feed.
+    public function findRecentFeed(int $limit = 20): array
     {
-        $stmt = Connection::get()->prepare($this->baseQuery() . ' WHERE id = ?');
-        $stmt->execute([$id]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        return $this->hydrate($row);
-    }
-
-    private function baseQuery(): string
-    {
-        return 'SELECT id, user_id, work_date, clock_in, clock_out, total_hours, status, source, '
-            . 'corrected_by, corrected_at FROM attendance';
-    }
-
-    private function hydrate(array $row): Attendance
-    {
-        return new Attendance(
-            id: (int) $row['id'],
-            userId: (int) $row['user_id'],
-            workDate: $row['work_date'],
-            clockIn: $row['clock_in'],
-            clockOut: $row['clock_out'],
-            totalHours: $row['total_hours'] !== null ? (float) $row['total_hours'] : null,
-            status: $row['status'],
-            source: $row['source'],
-            correctedBy: $row['corrected_by'] !== null ? (int) $row['corrected_by'] : null,
-            correctedAt: $row['corrected_at'],
+        $stmt = Connection::get()->prepare(
+            'SELECT a.id, a.employee_id, a.action, a.attendance_time, '
+            . "CONCAT_WS(' ', u.first_name, u.last_name) AS name "
+            . 'FROM attendance a '
+            . 'LEFT JOIN users u ON u.employee_id = a.employee_id '
+            . 'ORDER BY a.attendance_time DESC, a.id DESC LIMIT ?'
         );
+        $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    // Computes hours between the first 'in' and last 'out' event of a day.
+    public function computeDailyHours(string $employeeId, string $date): ?float
+    {
+        $stmt = Connection::get()->prepare(
+            'SELECT attendance_time FROM attendance '
+            . 'WHERE employee_id = ? AND DATE(attendance_time) = ? ORDER BY attendance_time ASC, id ASC'
+        );
+        $stmt->execute([$employeeId, $date]);
+        $times = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        if (count($times) < 2) {
+            return null;
+        }
+
+        $start = new \DateTimeImmutable($times[0]);
+        $end = new \DateTimeImmutable($times[count($times) - 1]);
+
+        return round(($end->getTimestamp() - $start->getTimestamp()) / 3600, 1);
     }
 }

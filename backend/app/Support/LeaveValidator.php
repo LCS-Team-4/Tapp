@@ -8,10 +8,10 @@ class LeaveValidator
     {
         $errors = [];
 
-        $type = $payload['type'] ?? $payload['leave_type'] ?? null;
-        $allowedTypes = ['annual', 'sick', 'unpaid', 'other', 'emergency'];
+        $type = $payload['type'] ?? $payload['leave_type'] ?? $payload['request_type'] ?? null;
+        $allowedTypes = ['leave', 'annual', 'sick', 'unpaid', 'other', 'emergency'];
         if (!in_array($type, $allowedTypes, true)) {
-            $errors['type'][] = 'Type must be one of: annual, sick, unpaid, other';
+            $errors['type'][] = 'Type must be one of: leave, annual, sick, unpaid, other, emergency';
         }
 
         $start = $payload['start_date'] ?? null;
@@ -77,6 +77,14 @@ class LeaveValidator
     {
         $errors = [];
 
+        $type = $payload['type'] ?? $payload['leave_type'] ?? $payload['request_type'] ?? null;
+        if ($type !== null) {
+            $allowedTypes = ['leave', 'annual', 'sick', 'unpaid', 'other', 'emergency'];
+            if (!in_array($type, $allowedTypes, true)) {
+                $errors['type'][] = 'Type must be one of: leave, annual, sick, unpaid, other, emergency';
+            }
+        }
+
         $start = $payload['start_date'] ?? null;
         $end = $payload['end_date'] ?? null;
         if (!self::isValidDateTime($start)) {
@@ -92,6 +100,11 @@ class LeaveValidator
             if ($endDt < $startDt) {
                 $errors['end_date'][] = 'End date must be after start date';
             }
+        }
+
+        $reason = trim((string) ($payload['reason'] ?? ''));
+        if ($reason === '') {
+            $errors['reason'][] = 'Must contain reason';
         }
 
         return $errors;

@@ -27,9 +27,14 @@ class Request
         $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
         $basePath = rtrim((string) config('app.api_base_path', ''), '/');
-        if ($basePath !== '' && str_starts_with($path, $basePath)) {
-            $path = substr($path, strlen($basePath));
+        if ($basePath !== '') {
+            if (str_starts_with($path, $basePath)) {
+                $path = substr($path, strlen($basePath));
+            } elseif (($pos = strpos($path, $basePath)) !== false) {
+                $path = substr($path, $pos + strlen($basePath));
+            }
         }
+
         if ($path === '') {
             $path = '/';
         }
@@ -38,11 +43,24 @@ class Request
         $body = [];
 
         $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+        $rawInput = (string) file_get_contents('php://input');
+
         if (str_contains($contentType, 'application/json')) {
-            $decoded = json_decode((string) file_get_contents('php://input'), true);
+            $decoded = json_decode($rawInput, true);
             if (is_array($decoded)) {
                 $body = $decoded;
             }
+        }
+
+        if ($body === []) {
+            $decoded = json_decode($rawInput, true);
+            if (is_array($decoded)) {
+                $body = $decoded;
+            }
+        }
+
+        if ($body === []) {
+            $body = $_POST;
         }
 
         return new self($method, $path, $_GET, $body, $headers);

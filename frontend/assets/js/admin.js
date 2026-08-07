@@ -600,8 +600,61 @@ function wireSettings() {
   });
 }
 
+function wireAdminInvite() {
+  const inviteBtn = document.getElementById('btn-open-invite-admin');
+  const modal = document.getElementById('modal-invite-admin');
+  if (!inviteBtn || !modal) return;
+
+  const nameEl = modal.querySelector('#invite-admin-name');
+  const idEl = modal.querySelector('#invite-admin-employee-id');
+  const emailEl = modal.querySelector('#invite-admin-email');
+  const passEl = modal.querySelector('#invite-admin-password');
+  const passConfirmEl = modal.querySelector('#invite-admin-password-confirm');
+  const errorEl = modal.querySelector('#invite-admin-error');
+  const createBtn = modal.querySelector('#btn-invite-admin-create');
+  const cancelBtn = modal.querySelector('#btn-invite-admin-cancel');
+
+  function open() { modal.classList.add('active'); }
+  function close() { modal.classList.remove('active'); }
+
+  function validate() {
+    const name = nameEl.value.trim();
+    const empId = idEl.value.trim();
+    const email = emailEl.value.trim();
+    const pass = passEl.value;
+    const passc = passConfirmEl.value;
+    const ok = name && empId && email && pass && pass === passc;
+    errorEl.style.display = ok ? 'none' : 'block';
+    return ok;
+  }
+
+  inviteBtn.addEventListener('click', () => {
+    nameEl.value = '';
+    idEl.value = '';
+    emailEl.value = '';
+    passEl.value = '';
+    passConfirmEl.value = '';
+    errorEl.style.display = 'none';
+    open();
+  });
+
+  cancelBtn.addEventListener('click', () => close());
+
+  createBtn.addEventListener('click', () => {
+    if (!validate()) return;
+    postForm('admin/actions/create_admin.php', {
+      name: nameEl.value.trim(),
+      employee_id: idEl.value.trim(),
+      email: emailEl.value.trim(),
+      password: passEl.value,
+      password_confirm: passConfirmEl.value,
+    });
+  });
+}
+
 wireEmployees();
 wireAttendance();
 wireLeave();
 wireReports();
 wireSettings();
+wireAdminInvite();

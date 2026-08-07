@@ -1,7 +1,8 @@
 <?php
 // db.php — shared read/write access to data/db.json, the mock database
-// backing auth and per-user data until a real backend/database exists.
-// No other file should touch db.json directly; go through the helpers here.
+// backing attendance and leave features until a real backend/database exists.
+// Authentication is now backed by the real tapp_db MySQL schema.
+require_once __DIR__ . '/db_mysql.php';
 
 define('DB_PATH', __DIR__ . '/../data/db.json');
 
@@ -16,32 +17,14 @@ function db_write(array $data): void
     file_put_contents(DB_PATH, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
-// Matches a login form submission against users.email OR users.id, scoped
-// to the selected role tab — email comparison is case-insensitive (email
-// addresses are), id comparison is exact (EMP-#### / ADM-#### format).
 function db_find_user(string $loginId, string $role): ?array
 {
-    $db = db_read();
-    foreach ($db['users'] ?? [] as $user) {
-        if ($user['role'] !== $role) {
-            continue;
-        }
-        if (strcasecmp($user['email'], $loginId) === 0 || $user['id'] === $loginId) {
-            return $user;
-        }
-    }
-    return null;
+    return db_mysql_find_user($loginId, $role);
 }
 
 function db_employee(string $employeeId): ?array
 {
-    $db = db_read();
-    foreach ($db['users'] ?? [] as $user) {
-        if ($user['id'] === $employeeId) {
-            return $user;
-        }
-    }
-    return null;
+    return db_mysql_employee($employeeId);
 }
 
 // Appends one entry (e.g. ['time_label' => ..., 'employee_name' => ...,

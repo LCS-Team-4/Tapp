@@ -203,6 +203,18 @@
             "reason": "Family emergency",
             "status": "pending",
             "decided_at": null
+        },
+        {
+            "leave_id": 5,
+            "employee_id": "S-001",
+            "employee_name": "yaqoob ",
+            "leave_type": "annual",
+            "start_date": "2026-08-08",
+            "end_date": "2027-08-08",
+            "duration_days": 366,
+            "reason": "flu",
+            "status": "pending",
+            "decided_at": null
         }
     ],
     "activity_log": [
@@ -245,6 +257,11 @@
             "time_label": "10:14",
             "employee_name": "samkeh",
             "event_type": "clock_out"
+        },
+        {
+            "time_label": "10:18",
+            "employee_name": "yaqoob ",
+            "event_type": "leave_applied"
         }
     ]
 }

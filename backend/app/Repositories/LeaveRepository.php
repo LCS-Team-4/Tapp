@@ -21,22 +21,26 @@ class LeaveRepository
 
     public function create(int $userId, array $payload): array
     {
-        $stmt = Connection::get()->prepare(
-            'INSERT INTO leave_requests (user_id, leave_type, start_date, end_date, reason, status, created_at) '
-            . 'VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :status, NOW())'
-        );
-        $stmt->execute([
-            'user_id' => $userId,
-            'leave_type' => $payload['type'] ?? null,
-            'start_date' => $payload['start_date'] ?? null,
-            'end_date' => $payload['end_date'] ?? null,
-            'reason' => $payload['reason'] ?? null,
-            'status' => 'pending',
-        ]);
+        try {
+            $stmt = Connection::get()->prepare(
+                'INSERT INTO leave_requests (user_id, leave_type, start_date, end_date, reason, status, created_at) '
+                . 'VALUES (:user_id, :leave_type, :start_date, :end_date, :reason, :status, NOW())'
+            );
+            $stmt->execute([
+                'user_id' => $userId,
+                'leave_type' => $payload['type'] ?? $payload['leave_type'] ?? null,
+                'start_date' => $payload['start_date'] ?? null,
+                'end_date' => $payload['end_date'] ?? null,
+                'reason' => $payload['reason'] ?? null,
+                'status' => 'pending',
+            ]);
 
-        $id = (int) Connection::get()->lastInsertId();
+            $id = (int) Connection::get()->lastInsertId();
 
-        return $this->findById($id) ?? [];
+            return $this->findById($id) ?? [];
+        } catch (\PDOException $e) {
+            throw new \RuntimeException('Unable to create leave request: ' . $e->getMessage(), 0, $e);
+        }
     }
 
     public function findById(int $leaveId): ?array

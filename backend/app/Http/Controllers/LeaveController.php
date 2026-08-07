@@ -30,7 +30,12 @@ class LeaveController
             return Response::error('User not found or inactive', 403);
         }
 
-        $leave = $this->repository->create((int) $activeUser['id'], $request->input() ?? []);
+        try {
+            $leave = $this->repository->create((int) $activeUser['id'], $request->input() ?? []);
+        } catch (\RuntimeException $e) {
+            return Response::json(['message' => 'Leave request could not be saved', 'error' => $e->getMessage()], 500);
+        }
+
         if ($leave === []) {
             return Response::error('Insert failed, no data returned', 500);
         }
@@ -59,7 +64,8 @@ class LeaveController
             return Response::error('Leave request not found', 404);
         }
 
-        $updated = $this->repository->updateStatus((int) $leaveId, (string) ($request->input()['status'] ?? ''));
+        $status = (string) ($request->input()['status'] ?? $request->input()['decision'] ?? '');
+        $updated = $this->repository->updateStatus((int) $leaveId, $status);
         if ($updated === null) {
             return Response::error('Update failed, no data returned', 500);
         }

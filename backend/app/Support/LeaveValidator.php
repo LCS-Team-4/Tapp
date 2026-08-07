@@ -8,8 +8,8 @@ class LeaveValidator
     {
         $errors = [];
 
-        $type = $payload['type'] ?? null;
-        $allowedTypes = ['annual', 'sick', 'unpaid', 'other'];
+        $type = $payload['type'] ?? $payload['leave_type'] ?? null;
+        $allowedTypes = ['annual', 'sick', 'unpaid', 'other', 'emergency'];
         if (!in_array($type, $allowedTypes, true)) {
             $errors['type'][] = 'Type must be one of: annual, sick, unpaid, other';
         }
@@ -42,8 +42,8 @@ class LeaveValidator
     public static function validateStatusUpdate(array $payload): array
     {
         $errors = [];
-        $status = $payload['status'] ?? null;
-        $allowedStatuses = ['pending', 'approved', 'rejected'];
+        $status = $payload['status'] ?? $payload['decision'] ?? null;
+        $allowedStatuses = ['pending', 'approved', 'rejected', 'declined'];
 
         if (!in_array($status, $allowedStatuses, true)) {
             $errors['status'][] = 'Invalid status: it must be approved, rejected or pending';

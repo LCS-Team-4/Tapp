@@ -72,10 +72,10 @@ $error = $_GET['error'] ?? '';
         console.log(<?php echo json_encode($_SESSION['login_debug'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
         console.groupEnd();
       </script>
-      <details style="margin-bottom:16px; padding:12px; background:#f4f4f4; border:1px solid #ccc; border-radius:8px;">
+      <!-- <details style="margin-bottom:16px; padding:12px; background:#f4f4f4; border:1px solid #ccc; border-radius:8px;">
         <summary style="font-weight:600; cursor:pointer;">Show login debug details</summary>
         <pre style="white-space:pre-wrap; word-break:break-word;"><?php echo htmlspecialchars(json_encode($_SESSION['login_debug'], JSON_PRETTY_PRINT), ENT_QUOTES, 'UTF-8'); ?></pre>
-      </details>
+      </details> -->
       <?php unset($_SESSION['login_debug']); ?>
     <?php endif; ?>
 

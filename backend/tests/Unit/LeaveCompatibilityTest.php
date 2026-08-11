@@ -48,3 +48,4 @@ class LeaveCompatibilityTest extends TestCase
         $this->assertSame([], $errors);
     }
 }
+  

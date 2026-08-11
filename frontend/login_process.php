@@ -62,7 +62,7 @@ $_SESSION['employee_id']   = $user['employee_id'] ?? '';
 $_SESSION['initials']      = compute_initials($user['name'] ?? '');
 $_SESSION['role_label']    = ($user['role'] ?? '') === 'admin'
     ? 'System Admin'
-    : ($user['employee_id'] ?? '');
+    : 'Employee';
 
 if (($user['role'] ?? '') === 'admin') {
     header('Location: admin/portal.php');

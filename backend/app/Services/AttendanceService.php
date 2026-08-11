@@ -88,7 +88,7 @@ class AttendanceService
             'clock_in' => $clockIn,
             'clock_out' => $clockOut,
             'total_hours' => $hours,
-            'week_hours_logged' => 0,
+            'week_hours_logged' => $this->weekHoursLogged($employeeId),
             'week_hours_target' => 40,
         ];
     }
@@ -129,6 +129,39 @@ class AttendanceService
         }
 
         return array_reverse($history);
+    }
+
+    private function weekHoursLogged(string $employeeId): float
+    {
+        $now = new \DateTimeImmutable('now');
+        $today = $now->setTime(0, 0, 0);
+        $dayOfWeek = (int) $today->format('N');
+        $weekStart = $dayOfWeek === 1
+            ? $today
+            : $today->modify('-' . ($dayOfWeek - 1) . ' days');
+
+        $events = $this->attendanceRepository->findEventsBetween(
+            $employeeId,
+            $weekStart->format('Y-m-d'),
+            $today->format('Y-m-d')
+        );
+
+        $byDay = [];
+        foreach ($events as $event) {
+            $day = substr($event['attendance_time'], 0, 10);
+            $byDay[$day][] = $event;
+        }
+
+        $totalHours = 0.0;
+        foreach ($byDay as $day => $dayEvents) {
+            $fallbackEnd = $day === $today->format('Y-m-d') ? $now : null;
+            $hours = $this->attendanceRepository->computeDailyHoursFromEvents($dayEvents, $fallbackEnd);
+            if ($hours !== null) {
+                $totalHours += $hours;
+            }
+        }
+
+        return round($totalHours, 1);
     }
 
     // Feed of recent clock events for the admin dashboard.

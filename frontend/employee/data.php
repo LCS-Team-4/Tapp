@@ -29,7 +29,14 @@ $currentUser = $data['current_user'] ?? [
 ];
 
 // ---- 003_create_attendance ----
-$todayStatus        = $data['today_status'] ?? ['status' => 'absent', 'clock_in' => null, 'clock_out' => null, 'total_hours' => null];
+$todayStatus        = $data['today_status'] ?? [
+    'status' => 'absent',
+    'clock_in' => null,
+    'clock_out' => null,
+    'total_hours' => null,
+    'week_hours_logged' => 0,
+    'week_hours_target' => 40,
+];
 $attendanceHistory  = $data['attendance_history'] ?? [];
 
 // ---- 005_create_leave ----

@@ -76,6 +76,55 @@ class AttendanceRepository
         return array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    public function findEventsBetween(string $employeeId, string $startDate, string $endDate): array
+    {
+        $stmt = Connection::get()->prepare(
+            'SELECT employee_id, action, attendance_time '
+            . 'FROM attendance '
+            . 'WHERE employee_id = ? AND DATE(attendance_time) BETWEEN ? AND ? '
+            . 'ORDER BY attendance_time ASC, id ASC'
+        );
+        $stmt->execute([$employeeId, $startDate, $endDate]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function computeDailyHoursFromEvents(array $events, ?\DateTimeImmutable $fallbackEnd = null): ?float
+    {
+        if (count($events) === 0) {
+            return null;
+        }
+
+        $firstIn = null;
+        $lastOut = null;
+        foreach ($events as $event) {
+            if ($firstIn === null && $event['action'] === 'in') {
+                $firstIn = $event['attendance_time'];
+            }
+            if ($event['action'] === 'out') {
+                $lastOut = $event['attendance_time'];
+            }
+        }
+
+        if ($firstIn === null) {
+            return null;
+        }
+
+        if ($lastOut !== null) {
+            $start = new \DateTimeImmutable($firstIn);
+            $end = new \DateTimeImmutable($lastOut);
+
+            return round(($end->getTimestamp() - $start->getTimestamp()) / 3600, 1);
+        }
+
+        if ($fallbackEnd === null) {
+            return null;
+        }
+
+        $start = new \DateTimeImmutable($firstIn);
+        return round(($fallbackEnd->getTimestamp() - $start->getTimestamp()) / 3600, 1);
+    }
+
     // Recent events for the admin live feed.
     public function findRecentFeed(int $limit = 20): array
     {

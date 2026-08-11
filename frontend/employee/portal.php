@@ -151,7 +151,7 @@ $firstName = explode(' ', $user['name'])[0];
         <div class="grid grid-3">
           <div class="card"><div class="sub">Clock In Time</div><h3 style="font-size:22px;" id="stat-clock-in"><?= htmlspecialchars($todayStatus['clock_in']) ?></h3></div>
           <div class="card"><div class="sub">Clock Out Time</div><h3 style="font-size:22px;" id="stat-clock-out"><?= htmlspecialchars($todayStatus['clock_out'] ?? '—') ?></h3></div>
-          <div class="card"><div class="sub">Total Hours Today</div><h3 style="font-size:22px;" id="stat-total-hours">In progress</h3></div>
+          <div class="card"><div class="sub">Total Hours Today</div><h3 style="font-size:22px;" id="stat-total-hours"><?= htmlspecialchars($todayStatus['total_hours'] !== null ? $todayStatus['total_hours'] : 'In progress') ?></h3></div>
         </div>
       </div>
 

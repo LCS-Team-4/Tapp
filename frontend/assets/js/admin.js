@@ -264,31 +264,91 @@ function wireEmployees() {
     resetForm();
   });
 
-  submitBtn?.addEventListener('click', () => {
+  submitBtn?.addEventListener('click', async () => {
     if (!validate()) return;
 
     const name = nameEl.value.trim();
-    // Front-end only — no POST/PATCH /api/employees endpoint yet.
+    const email = emailEl.value.trim();
+    const department = deptEl.value.trim();
+    const position = positionEl.value.trim();
+
     if (editingId !== null) {
-      const row = tbody.querySelector(`tr[data-id="${editingId}"]`);
-      if (row) {
-        row.querySelector('.avatar').textContent = initialsOf(name);
-        row.querySelector('.emp-name').textContent = name;
-        row.children[2].textContent = deptEl.value.trim();
-        row.children[3].textContent = positionEl.value.trim();
-        row.dataset.email = emailEl.value.trim();
+      try {
+        const response = await fetch(
+          `${API_ROOT}/api/admin/employees/${encodeURIComponent(editingId)}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              name,
+              email,
+              department,
+              position,
+            }),
+          }
+        );
+
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message = body.error?.message || 'Unable to update employee';
+          throw new Error(message);
+        }
+
+        const updated = body.data || {};
+        const row = tbody.querySelector(`tr[data-id="${editingId}"]`);
+        if (row) {
+          row.querySelector('.avatar').textContent = initialsOf(updated.name || name);
+          row.querySelector('.emp-name').textContent = updated.name || name;
+          row.children[2].textContent = updated.department || department;
+          row.children[3].textContent = updated.position || position;
+          row.dataset.email = updated.email || email;
+        }
+      } catch (error) {
+        if (errorEl) {
+          errorEl.textContent = error.message;
+          errorEl.style.display = 'block';
+        }
+        return;
       }
     } else {
-      const newRow = buildEmployeeRow({
-        employee_id: nextEmployeeId(tbody),
-        name,
-        initials: initialsOf(name),
-        email: emailEl.value.trim(),
-        department: deptEl.value.trim(),
-        position: positionEl.value.trim(),
-      });
-      wireRowActions(newRow);
-      tbody.appendChild(newRow);
+      try {
+        const response = await fetch(`${API_ROOT}/api/admin/employees`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name,
+            email,
+            department,
+            position,
+          }),
+        });
+
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message = body.error?.message || 'Unable to register employee';
+          throw new Error(message);
+        }
+
+        const created = body.data || {};
+        const newRow = buildEmployeeRow({
+          employee_id: created.employee_id || nextEmployeeId(tbody),
+          name: created.name || name,
+          initials: initialsOf(created.name || name),
+          email: created.email || email,
+          department,
+          position,
+        });
+        wireRowActions(newRow);
+        tbody.appendChild(newRow);
+      } catch (error) {
+        if (errorEl) {
+          errorEl.textContent = error.message;
+          errorEl.style.display = 'block';
+        }
+        return;
+      }
     }
 
     applyFilters();

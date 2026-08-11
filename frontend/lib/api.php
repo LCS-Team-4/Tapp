@@ -45,7 +45,12 @@ function api_request(string $method, string $path, array $payload = []): array
     }
 
     $ch = curl_init($url);
-    $headers = ['Content-Type: application/json'];
+    $headers = [
+        'Content-Type: application/json',
+        'Cache-Control: no-cache, no-store, must-revalidate',
+        'Pragma: no-cache',
+        'Expires: 0',
+    ];
 
     // Forward the session cookie so the backend can authenticate us.
     if (session_id() !== '') {

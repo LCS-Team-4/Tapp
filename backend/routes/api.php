@@ -45,3 +45,4 @@ $router->get('/users/profile', [$usersController, 'profile'], [Authenticate::cla
 $router->get('/admin/dashboard', [$usersController, 'dashboard'], [Authenticate::class, RequireAdmin::class]);
 $router->get('/admin/employees', [$usersController, 'employees'], [Authenticate::class, RequireAdmin::class]);
 $router->post('/admin/employees', [$usersController, 'register'], [Authenticate::class, RequireAdmin::class]);
+$router->put('/admin/employees/{employeeId}', [$usersController, 'update'], [Authenticate::class, RequireAdmin::class]);

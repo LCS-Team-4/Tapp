@@ -214,7 +214,9 @@ class UsersController
                 $lastName,
                 $email,
                 password_hash($defaultPassword, PASSWORD_BCRYPT),
-                'staff'
+                'staff',
+                trim((string) $request->input('department', '')) ?: null,
+                trim((string) $request->input('position', '')) ?: null,
             );
         } catch (\Throwable $e) {
             return Response::error('Unable to register employee: ' . $e->getMessage(), 500);
@@ -226,6 +228,44 @@ class UsersController
             'email' => $created->email,
             'temporary_password' => $defaultPassword,
         ], 201);
+    }
+
+    public function update(Request $request, string $employeeId): Response
+    {
+        $user = $request->user();
+        if ($user === null || $user['role'] !== 'admin') {
+            return Response::error('Forbidden', 403);
+        }
+
+        $payload = $request->input();
+        $name = trim((string) ($payload['name'] ?? ''));
+        $email = trim((string) ($payload['email'] ?? ''));
+
+        if ($name === '' || $email === '') {
+            return Response::error('Name and email are required', 400);
+        }
+
+        $existing = $this->users->findByEmployeeId($employeeId);
+        if ($existing === null) {
+            return Response::error('Employee not found', 404);
+        }
+
+        if ($email !== $existing->email && $this->users->emailExists($email)) {
+            return Response::error('Email already in use', 409);
+        }
+
+        $updated = $this->users->updateByEmployeeId($employeeId, [
+            'name' => $name,
+            'email' => $email,
+            'department' => $payload['department'] ?? null,
+            'position' => $payload['position'] ?? null,
+        ]);
+
+        if ($updated === null) {
+            return Response::error('Unable to update employee', 500);
+        }
+
+        return Response::json($updated->toArray());
     }
 
     private function shapeLeave(array $req): array

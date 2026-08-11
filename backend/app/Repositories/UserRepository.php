@@ -59,15 +59,15 @@ class UserRepository
         return $this->hydrate($row);
     }
 
-    public function create(string $employeeId, string $firstName, string $lastName, string $email, string $password, string $role): User
+    public function create(string $employeeId, string $firstName, string $lastName, string $email, string $password, string $role, ?string $department = null, ?string $position = null): User
     {
         $rfidUid = $this->generateRfidUid($employeeId);
 
         $stmt = Connection::get()->prepare(
-            'INSERT INTO users (employee_id, rfid_uid, first_name, last_name, email, password, role, status) '
-            . 'VALUES (?, ?, ?, ?, ?, ?, ?, \'OUT\')'
+            'INSERT INTO users (employee_id, rfid_uid, first_name, last_name, email, password, role, department, position, status) '
+            . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'OUT\')'
         );
-        $stmt->execute([$employeeId, $rfidUid, $firstName, $lastName, $email, $password, $role]);
+        $stmt->execute([$employeeId, $rfidUid, $firstName, $lastName, $email, $password, $role, $department, $position]);
 
         return $this->findById((int) Connection::get()->lastInsertId());
     }
@@ -86,6 +86,53 @@ class UserRepository
         $stmt->execute([$employeeId]);
 
         return (int) $stmt->fetchColumn() > 0;
+    }
+
+    public function updateByEmployeeId(string $employeeId, array $payload): ?User
+    {
+        $existing = $this->findByEmployeeId($employeeId);
+        if ($existing === null) {
+            return null;
+        }
+
+        $fields = [];
+        $params = [];
+
+        if (isset($payload['name'])) {
+            $name = trim((string) $payload['name']);
+            if ($name !== '') {
+                $parts = array_values(array_filter(preg_split('/\s+/', $name)));
+                $fields[] = 'first_name = ?';
+                $fields[] = 'last_name = ?';
+                $params[] = $parts[0] ?? '';
+                $params[] = $parts[1] ?? '';
+            }
+        }
+
+        if (isset($payload['email'])) {
+            $fields[] = 'email = ?';
+            $params[] = trim((string) $payload['email']);
+        }
+
+        if (array_key_exists('department', $payload)) {
+            $fields[] = 'department = ?';
+            $params[] = $payload['department'] !== '' ? trim((string) $payload['department']) : null;
+        }
+
+        if (array_key_exists('position', $payload)) {
+            $fields[] = 'position = ?';
+            $params[] = $payload['position'] !== '' ? trim((string) $payload['position']) : null;
+        }
+
+        if ($fields === []) {
+            return $existing;
+        }
+
+        $params[] = $existing->employeeId;
+        $stmt = Connection::get()->prepare('UPDATE users SET ' . implode(', ', $fields) . ' WHERE employee_id = ?');
+        $stmt->execute($params);
+
+        return $this->findByEmployeeId($existing->employeeId);
     }
 
     private function generateRfidUid(string $employeeId): string
@@ -109,7 +156,7 @@ class UserRepository
     {
         return 'SELECT u.id, u.employee_id, u.rfid_uid, '
             . 'CONCAT_WS(\' \', u.first_name, u.last_name) AS name, '
-            . 'u.email, u.password, u.role, u.status '
+            . 'u.email, u.password, u.role, u.department, u.position, u.status '
             . 'FROM users u';
     }
 
@@ -130,8 +177,8 @@ class UserRepository
             name: trim((string) $row['name']),
             email: $row['email'],
             role: $role,
-            department: null,
-            position: null,
+            department: $row['department'] ?? null,
+            position: $row['position'] ?? null,
             status: 'active',
             annualLeaveBalance: 0.0,
         );

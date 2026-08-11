@@ -78,9 +78,10 @@ class Router
             }
 
             array_shift($matches);
-            $request->setParams(array_combine($route['paramNames'], $matches));
+            $params = array_combine($route['paramNames'], $matches);
+            $request->setParams($params);
 
-            return $this->runPipeline($route['middleware'], $route['handler'], $request);
+            return $this->runPipeline($route['middleware'], $route['handler'], $request, array_values($params));
         }
 
         if ($pathMatched) {
@@ -94,10 +95,10 @@ class Router
     // class is instantiated and called as handle($request, $next), with the
     // handler as the innermost call. A middleware short-circuits by simply
     // returning a Response without calling $next().
-    private function runPipeline(array $middleware, callable $handler, Request $request): Response
+    private function runPipeline(array $middleware, callable $handler, Request $request, array $params = []): Response
     {
-        $next = static function (Request $request) use ($handler): Response {
-            return $handler($request);
+        $next = static function (Request $request) use ($handler, $params): Response {
+            return $handler($request, ...$params);
         };
 
         foreach (array_reverse($middleware) as $middlewareClass) {

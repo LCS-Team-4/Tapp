@@ -1,0 +1,16 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "Basic frontend project",
+  "main": "index.js",
+  "scripts": {
+    "start": "serve ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}
+

@@ -21,12 +21,6 @@ function require_role(string $role): void
         header('Location: ' . $base . '/login.php');
         exit;
     }
-
-    if ($_SESSION['role'] !== $role && ($_SESSION['user_id'] ?? null) === null) {
-        $redirect = $_SESSION['role'] === 'admin' ? '/admin/portal.php' : '/employee/portal.php';
-        header('Location: ' . $base . $redirect);
-        exit;
-    }
 }
 
 function current_user(): array

@@ -35,11 +35,12 @@ function api_base_url(): string
 function api_request(string $method, string $path, array $payload = []): array
 {
     $url = api_base_url() . $path;
+    $sessionWasActive = session_status() === PHP_SESSION_ACTIVE;
 
     // If the frontend script already has an active session, release its lock
     // before the backend request uses the same session cookie. This avoids the
     // deadlock where the backend waits for the frontend request to finish.
-    if (session_status() === PHP_SESSION_ACTIVE) {
+    if ($sessionWasActive) {
         session_write_close();
     }
 
@@ -72,6 +73,10 @@ function api_request(string $method, string $path, array $payload = []): array
 
     if ($response === false) {
         throw new RuntimeException('API request failed: ' . $error);
+    }
+
+    if ($sessionWasActive) {
+        session_start();
     }
 
     $body = json_decode($response, true);

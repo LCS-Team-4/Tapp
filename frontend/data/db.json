@@ -215,6 +215,30 @@
             "reason": "flu",
             "status": "pending",
             "decided_at": null
+        },
+        {
+            "leave_id": 6,
+            "employee_id": "S-001",
+            "employee_name": "yaqoob ",
+            "leave_type": "annual",
+            "start_date": "2026-08-09",
+            "end_date": "2026-08-28",
+            "duration_days": 20,
+            "reason": "holiday",
+            "status": "pending",
+            "decided_at": null
+        },
+        {
+            "leave_id": 7,
+            "employee_id": "S-001",
+            "employee_name": "yaqoob ",
+            "leave_type": "annual",
+            "start_date": "2026-08-11",
+            "end_date": "2026-11-27",
+            "duration_days": 109,
+            "reason": "leave me alone",
+            "status": "pending",
+            "decided_at": null
         }
     ],
     "activity_log": [
@@ -260,6 +284,16 @@
         },
         {
             "time_label": "10:18",
+            "employee_name": "yaqoob ",
+            "event_type": "leave_applied"
+        },
+        {
+            "time_label": "10:36",
+            "employee_name": "yaqoob ",
+            "event_type": "leave_applied"
+        },
+        {
+            "time_label": "11:39",
             "employee_name": "yaqoob ",
             "event_type": "leave_applied"
         }

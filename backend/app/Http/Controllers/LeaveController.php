@@ -25,13 +25,13 @@ class LeaveController
             return Response::json(['message' => 'Validation failed', 'errors' => $errors], 400);
         }
 
-        $activeUser = $this->repository->findActiveUser((int) $user['id']);
-        if ($activeUser === null || !in_array((string) ($activeUser['status'] ?? ''), ['active', 'IN'], true)) {
-            return Response::error('User not found or inactive', 403);
+        $userRecord = $this->repository->findUser((int) $user['id']);
+        if ($userRecord === null) {
+            return Response::error('User not found', 403);
         }
 
         try {
-            $leave = $this->repository->create((int) $activeUser['id'], $request->input() ?? []);
+            $leave = $this->repository->create((int) $userRecord['id'], $request->input() ?? []);
         } catch (\RuntimeException $e) {
             return Response::json(['message' => 'Leave request could not be saved', 'error' => $e->getMessage()], 500);
         }
@@ -105,6 +105,66 @@ class LeaveController
         $leave = $this->repository->listForUser((int) $user['id'], (string) ($user['role'] ?? 'employee'));
 
         return Response::json($leave, 200);
+    }
+
+    public function updateOwn(Request $request, string $leaveId): Response
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return Response::error('Unauthorized', 401);
+        }
+
+        $existing = $this->repository->findById((int) $leaveId);
+        if ($existing === null) {
+            return Response::error('Leave request not found', 404);
+        }
+
+        if ((int) ($existing['user_id'] ?? 0) !== (int) $user['id']) {
+            return Response::error('Forbidden', 403);
+        }
+
+        if (($existing['status'] ?? '') !== 'pending') {
+            return Response::error('Only pending leave requests can be edited', 403);
+        }
+
+        $errors = LeaveValidator::validateUpdateLeave($request->input() ?? []);
+        if ($errors !== []) {
+            return Response::json(['message' => 'Validation failed', 'errors' => $errors], 400);
+        }
+
+        $updated = $this->repository->update((int) $leaveId, $request->input() ?? []);
+        if ($updated === null) {
+            return Response::error('Update failed, no data returned', 500);
+        }
+
+        return Response::json(['message' => 'Leave request updated', 'data' => $updated], 200);
+    }
+
+    public function cancel(Request $request, string $leaveId): Response
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return Response::error('Unauthorized', 401);
+        }
+
+        $existing = $this->repository->findById((int) $leaveId);
+        if ($existing === null) {
+            return Response::error('Leave request not found', 404);
+        }
+
+        if ((int) ($existing['user_id'] ?? 0) !== (int) $user['id']) {
+            return Response::error('Forbidden', 403);
+        }
+
+        if (($existing['status'] ?? '') !== 'pending') {
+            return Response::error('Only pending leave requests can be canceled', 403);
+        }
+
+        if (!$this->repository->delete((int) $leaveId)) {
+            return Response::error('Cancel failed', 500);
+        }
+
+        return Response::json(['message' => 'Leave request canceled'], 200);
     }
 
     public function updateLeave(Request $request, string $leaveId): Response

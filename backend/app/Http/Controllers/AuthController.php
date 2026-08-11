@@ -34,7 +34,54 @@ class AuthController
         self::startSession();
         $_SESSION['user_id'] = $user->id;
 
-        return Response::json($user);
+        return Response::json($user->toArray());
+    }
+
+    public function signup(Request $request): Response
+    {
+        $name = trim((string) $request->input('name', ''));
+        $employeeId = trim((string) $request->input('employee_id', ''));
+        $email = trim((string) $request->input('email', ''));
+        $password = (string) $request->input('password', '');
+        $passwordConfirm = (string) $request->input('password_confirm', '');
+        $role = trim((string) $request->input('role', 'employee'));
+        $role = in_array($role, ['employee', 'admin'], true) ? $role : 'employee';
+
+        if ($name === '' || $employeeId === '' || $email === '' || $password === '' || $password !== $passwordConfirm) {
+            return Response::error('Please fill in all fields and make sure passwords match', 400);
+        }
+
+        if ($this->users->emailExists($email) || $this->users->employeeIdExists($employeeId)) {
+            return Response::error('That email or employee ID already exists', 409);
+        }
+
+        // Hosted role vocabulary: staff/manager/admin. employee -> staff, admin -> admin.
+        $hostedRole = $role === 'admin' ? 'admin' : 'staff';
+
+        // Split name into first/last the same way the old frontend signup did.
+        $nameParts = array_values(array_filter(array_map('trim', explode(' ', $name))));
+        $firstName = $nameParts[0] ?? 'Unknown';
+        $lastName = $nameParts[1] ?? '';
+
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+
+        try {
+            $user = $this->users->create(
+                $employeeId,
+                $firstName,
+                $lastName,
+                $email,
+                $passwordHash,
+                $hostedRole
+            );
+        } catch (\Throwable $e) {
+            return Response::error('Unable to create account: ' . $e->getMessage(), 500);
+        }
+
+        self::startSession();
+        $_SESSION['user_id'] = $user->id;
+
+        return Response::json($user->toArray(), 201);
     }
 
     public function logout(Request $request): Response

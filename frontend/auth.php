@@ -1,5 +1,7 @@
 <?php
-// auth.php — session bootstrap + role guard, included by every protected page
+// auth.php — session bootstrap + role guard, included by every protected page.
+// The backend API uses the same PHP session (via forwarded cookies), so the
+// session data here must stay in sync with what the backend wrote.
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -15,12 +17,12 @@ function require_role(string $role): void
     // trailing slash so root deployments don't end up with "//login.php"
     $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'], 2)), '/');
 
-    if (empty($_SESSION['authenticated'])) {
+    if (empty($_SESSION['authenticated']) && empty($_SESSION['user_id'])) {
         header('Location: ' . $base . '/login.php');
         exit;
     }
 
-    if ($_SESSION['role'] !== $role) {
+    if ($_SESSION['role'] !== $role && ($_SESSION['user_id'] ?? null) === null) {
         $redirect = $_SESSION['role'] === 'admin' ? '/admin/portal.php' : '/employee/portal.php';
         header('Location: ' . $base . $redirect);
         exit;

@@ -1,8 +1,9 @@
 <?php
 // create_admin.php — admin-only endpoint to create another admin account
+// via the backend API.
 require_once __DIR__ . '/../../auth.php';
 require_role('admin');
-require_once __DIR__ . '/../../lib/db.php';
+require_once __DIR__ . '/../../lib/api.php';
 
 $name = trim($_POST['name'] ?? '');
 $employee_id = trim($_POST['employee_id'] ?? '');
@@ -16,30 +17,26 @@ if ($name === '' || $employee_id === '' || $email === '' || $password === '' || 
 }
 
 try {
-    // Check duplicates across admin and employee roles
-    $existingByEmail = db_mysql_find_user($email, 'employee') ?? db_mysql_find_user($email, 'admin');
-    $existingById = db_mysql_find_user($employee_id, 'employee') ?? db_mysql_find_user($employee_id, 'admin');
-
-    if ($existingByEmail || $existingById) {
-        header('Location: ../portal.php?admin_create_error=2');
-        exit;
-    }
-
-    $passwordHash = password_hash($password, PASSWORD_BCRYPT);
-
-    // Hosted users schema: split name, store password under `password`,
-    // role enum staff/manager/admin. rfid_uid is NOT NULL + UNIQUE, so
-    // app-created admin accounts get a synthetic value from employee_id.
-    $nameParts = array_values(array_filter(array_map('trim', explode(' ', $name))));
-    $firstName = $nameParts[0] ?? 'Unknown';
-    $lastName  = $nameParts[1] ?? '';
-    $rfidUid   = 'app-' . $employee_id;
-
-    $pdo = db_mysql_connect();
-    $stmt = $pdo->prepare('INSERT INTO users (employee_id, rfid_uid, first_name, last_name, email, password, role) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    $stmt->execute([$employee_id, $rfidUid, $firstName, $lastName, $email, $passwordHash, 'admin']);
+    [$status, $body] = api_post('/auth/signup', [
+        'name' => $name,
+        'employee_id' => $employee_id,
+        'email' => $email,
+        'password' => $password,
+        'password_confirm' => $passwordConfirm,
+        'role' => 'admin',
+    ]);
 } catch (Throwable $e) {
-    error_log('Create admin failed: ' . $e->getMessage());
+    error_log('Create admin API error: ' . $e->getMessage());
+    header('Location: ../portal.php?admin_create_error=3');
+    exit;
+}
+
+if ($status === 409) {
+    header('Location: ../portal.php?admin_create_error=2');
+    exit;
+}
+
+if ($status !== 201) {
     header('Location: ../portal.php?admin_create_error=3');
     exit;
 }

@@ -391,9 +391,19 @@ function postForm(action, fields) {
 }
 
 // ---- Leave management: approve/decline ----
-// Each decision now POSTs to actions/leave_decision.php instead of moving
-// the card between lists locally — the reload re-renders both lists (and
-// the counts) fresh from db.json.
+// Each decision now calls the backend API at /api/admin/leave-requests/{id}
+// instead of the legacy actions/leave_decision.php endpoint.
+const API_ROOT = '../../backend/public';
+
+async function decideLeave(leaveId, decision) {
+  return fetch(`${API_ROOT}/api/admin/leave-requests/${encodeURIComponent(leaveId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ status: decision }),
+  });
+}
+
 function wireLeave() {
   const panel = document.getElementById('a-leave');
   if (!panel) return;
@@ -401,12 +411,17 @@ function wireLeave() {
   if (!list) return;
 
   list.querySelectorAll('[data-decision]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const card = btn.closest('.leave-req-card');
-      postForm('actions/leave_decision.php', {
-        leave_id: card.dataset.leaveId,
-        decision: btn.dataset.decision,
-      });
+      const response = await decideLeave(card.dataset.leaveId, btn.dataset.decision);
+      const data = await response.json().catch(() => ({ message: 'Unable to update leave request' }));
+
+      if (!response.ok) {
+        alert(data.message || 'Unable to update leave request');
+        return;
+      }
+
+      window.location.reload();
     });
   });
 }

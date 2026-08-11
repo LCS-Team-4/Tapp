@@ -1,52 +1,53 @@
 <?php
-// data.php — employee portal data, sourced from frontend/data/db.json via
-// frontend/lib/db.php, keyed by the logged-in employee ($_SESSION set in
-// login_process.php). Field names/shapes match what portal.php and
-// employee.js already expect — only where the data comes from changed.
-require_once __DIR__ . '/../lib/db.php';
+// data.php — employee portal data, sourced from the backend API via
+// frontend/lib/api.php. The backend reads from the hosted MySQL database.
+require_once __DIR__ . '/../lib/api.php';
 
 $employeeId = $_SESSION['employee_id'] ?? '';
-$employee   = db_employee($employeeId) ?? [];
-$db         = db_read();
+
+try {
+    [$status, $body] = api_get('/users/profile');
+} catch (Throwable $e) {
+    error_log('Profile API error: ' . $e->getMessage());
+    $status = 0;
+    $body = [];
+}
+
+$data = api_data($body);
 
 // ---- 001_create_users ----
-$currentUser = [
-    'employee_id' => $employee['id']          ?? '',
-    'name'        => $employee['name']        ?? '',
-    'email'       => $employee['email']       ?? '',
-    'department'  => $employee['department']  ?? '',
-    'position'    => $employee['position']    ?? '',
-    'role'        => $employee['role']        ?? 'employee',
-    'role_label'  => ($employee['department'] ?? '') . ' · ' . ($employee['id'] ?? ''),
-    'initials'    => $employee['initials']    ?? '??',
-    'status'      => 'active', // users.status enum: active | inactive — no inactive seed users yet
+$currentUser = $data['current_user'] ?? [
+    'employee_id' => $employeeId,
+    'name'        => $_SESSION['user_name'] ?? '',
+    'email'       => '',
+    'department'  => '',
+    'position'    => '',
+    'role'        => $_SESSION['role'] ?? 'employee',
+    'role_label'  => $_SESSION['role_label'] ?? '',
+    'initials'    => $_SESSION['initials'] ?? '??',
+    'status'      => 'active',
 ];
 
 // ---- 003_create_attendance ----
-$attendanceRecord  = $db['attendance'][$employeeId] ?? ['today' => [], 'history' => []];
-$todayStatus        = $attendanceRecord['today'];
-$attendanceHistory   = $attendanceRecord['history'];
+$todayStatus        = $data['today_status'] ?? ['status' => 'absent', 'clock_in' => null, 'clock_out' => null, 'total_hours' => null];
+$attendanceHistory  = $data['attendance_history'] ?? [];
 
 // ---- 005_create_leave ----
-// annual_leave_balance actually lives on `users`, not leave_requests — kept
-// as its own array here since the employee portal has no other use for a
-// full $currentUser-shaped record on this screen.
 $leaveBalance = [
-    'annual_leave_balance' => $employee['annual_leave_balance'] ?? 0,
+    'annual_leave_balance' => $data['leave_balance'] ?? 0,
 ];
 
-// leave_requests.leave_type enum: annual | sick | unpaid | emergency
-$leaveRequests = array_values(array_filter($db['leave_requests'] ?? [], function ($req) use ($employeeId) {
-    return $req['employee_id'] === $employeeId;
-}));
+$leaveRequests = $data['leave_requests'] ?? [];
 
 // Value/label pairs so the leave form submits the real enum value
-// (leave_requests.leave_type) while still displaying a friendly label.
+// (leave_requests.request_type) while still displaying a friendly label.
 $leaveTypeOptions = [
     ['value' => 'annual',    'label' => 'Annual Leave'],
     ['value' => 'sick',      'label' => 'Sick Leave'],
     ['value' => 'unpaid',    'label' => 'Unpaid Leave'],
     ['value' => 'emergency', 'label' => 'Emergency Leave'],
+    ['value' => 'other',     'label' => 'Other Leave'],
+    ['value' => 'leave',     'label' => 'Leave'],
 ];
 
 function leave_type_label(string $value, array $leaveTypeOptions): string

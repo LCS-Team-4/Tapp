@@ -65,6 +65,33 @@ function postForm(action, fields) {
   form.submit();
 }
 
+const API_ROOT = '../../backend/public';
+
+async function submitLeaveRequest(payload) {
+  return fetch(`${API_ROOT}/api/leave-request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+}
+
+async function updateLeaveRequest(leaveId, payload) {
+  return fetch(`${API_ROOT}/api/leave-requests/${encodeURIComponent(leaveId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+}
+
+async function cancelLeaveRequest(leaveId) {
+  return fetch(`${API_ROOT}/api/leave-requests/${encodeURIComponent(leaveId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+}
+
 function clockAction(type) {
   postForm('actions/clock.php', { type });
 }
@@ -158,10 +185,8 @@ function wirePasswordToggles() {
 }
 
 // ---- Profile: Leave sub-tab (form + status list) ----
-// Submit/edit/cancel now POST to actions/leave.php and let the redirect
-// reload the page, same pattern as clockAction() above. "Edit" itself stays
-// client-side (just repopulating the form from the clicked card's dataset,
-// no write yet) — only the actual submit/cancel actions hit the server.
+// Submit/edit/cancel now calls the backend API at /api/leave-request and
+// /api/leave-requests/{id} instead of the legacy actions/leave.php endpoint.
 function wireLeaveForm() {
   const panel = document.querySelector('[data-subtab-panel="leave"]');
   if (!panel) return;
@@ -207,10 +232,20 @@ function wireLeaveForm() {
   }
 
   listEl.querySelectorAll('.leave-req-card').forEach((card) => {
-    card.querySelector('[data-leave-action="cancel"]')?.addEventListener('click', () => {
+    card.querySelector('[data-leave-action="cancel"]')?.addEventListener('click', async () => {
       if (!confirm('Cancel this leave request?')) return;
-      postForm('actions/leave.php', { action: 'cancel', leave_id: card.dataset.leaveId });
+
+      const response = await cancelLeaveRequest(card.dataset.leaveId);
+      const data = await response.json().catch(() => ({ message: 'Unable to cancel leave request' }));
+
+      if (!response.ok) {
+        alert(data.message || 'Unable to cancel leave request');
+        return;
+      }
+
+      window.location.reload();
     });
+
     card.querySelector('[data-leave-action="edit"]')?.addEventListener('click', () => {
       editingId = card.dataset.leaveId;
       typeEl.value = card.dataset.leaveType;
@@ -231,7 +266,7 @@ function wireLeaveForm() {
     if (endEl.value && endEl.value < endEl.min) endEl.value = '';
   });
 
-  submitBtn.addEventListener('click', () => {
+  submitBtn.addEventListener('click', async () => {
     if (!validate()) return;
 
     const fields = {
@@ -242,10 +277,29 @@ function wireLeaveForm() {
     };
 
     if (editingId !== null) {
-      postForm('actions/leave.php', { action: 'edit', leave_id: editingId, ...fields });
-    } else {
-      postForm('actions/leave.php', { action: 'submit', ...fields });
+      const response = await updateLeaveRequest(editingId, fields);
+      const data = await response.json().catch(() => ({ message: 'Unexpected response from server' }));
+
+      if (!response.ok) {
+        errorEl.textContent = data.message || 'Unable to update leave request';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      window.location.reload();
+      return;
     }
+
+    const response = await submitLeaveRequest(fields);
+    const data = await response.json().catch(() => ({ message: 'Unexpected response from server' }));
+
+    if (!response.ok) {
+      errorEl.textContent = data.message || 'Unable to submit leave request';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    window.location.reload();
   });
 }
 

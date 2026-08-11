@@ -60,6 +60,23 @@ $error = $_GET['error'] ?? '';
       <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
         We were unable to process your login right now. Please try again later.
       </p>
+    <?php elseif ($error === '3'): ?>
+      <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
+        Invalid login credentials. Please check your ID/email and password.
+      </p>
+    <?php endif; ?>
+
+    <?php if (!empty($_SESSION['login_debug'])): ?>
+      <script>
+        console.group('TAPP Login Debug');
+        console.log(<?php echo json_encode($_SESSION['login_debug'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
+        console.groupEnd();
+      </script>
+      <!-- <details style="margin-bottom:16px; padding:12px; background:#f4f4f4; border:1px solid #ccc; border-radius:8px;">
+        <summary style="font-weight:600; cursor:pointer;">Show login debug details</summary>
+        <pre style="white-space:pre-wrap; word-break:break-word;"><?php echo htmlspecialchars(json_encode($_SESSION['login_debug'], JSON_PRETTY_PRINT), ENT_QUOTES, 'UTF-8'); ?></pre>
+      </details> -->
+      <?php unset($_SESSION['login_debug']); ?>
     <?php endif; ?>
 
     <form method="POST" action="login_process.php" id="login-form">

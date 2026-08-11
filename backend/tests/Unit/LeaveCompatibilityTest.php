@@ -41,6 +41,18 @@ class LeaveCompatibilityTest extends TestCase
         $this->assertSame([], $errors);
     }
 
+    public function testSubmitValidatorAcceptsRequestTypePayload(): void
+    {
+        $errors = LeaveValidator::validateSubmit([
+            'request_type' => 'annual',
+            'start_date' => '2026-08-15',
+            'end_date' => '2026-08-17',
+            'reason' => 'Vacation',
+        ]);
+
+        $this->assertSame([], $errors);
+    }
+
     public function testStatusValidatorAcceptsDeclinedStatus(): void
     {
         $errors = LeaveValidator::validateStatusUpdate(['status' => 'declined']);

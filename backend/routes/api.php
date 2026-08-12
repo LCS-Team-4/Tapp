@@ -48,5 +48,6 @@ $router->get('/admin/dashboard', [$usersController, 'dashboard'], [Authenticate:
 $router->get('/admin/employees', [$usersController, 'employees'], [Authenticate::class, RequireAdmin::class]);
 $router->post('/admin/employees', [$usersController, 'register'], [Authenticate::class, RequireAdmin::class]);
 $router->put('/admin/employees/{employeeId}', [$usersController, 'update'], [Authenticate::class, RequireAdmin::class]);
+$router->delete('/admin/employees/{employeeId}', [$usersController, 'delete'], [Authenticate::class, RequireAdmin::class]);
 $router->get('/admin/settings', [$settingsController, 'get'], [Authenticate::class, RequireAdmin::class]);
 $router->put('/admin/settings', [$settingsController, 'update'], [Authenticate::class, RequireAdmin::class]);

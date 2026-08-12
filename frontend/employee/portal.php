@@ -81,7 +81,7 @@ $firstName = explode(' ', $user['name'])[0];
             <h3 style="font-family:'Fraunces',serif; font-size:20px; display:flex; align-items:center; gap:10px;">Good morning, <?= htmlspecialchars($firstName) ?>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D2A7A7" stroke-width="1.8"><path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/></svg>
             </h3>
-            <p class="muted" style="margin-top:8px;">You're clocked in and on track — 2 days of leave already approved this month.</p>
+            <!-- <p class="muted" style="margin-top:8px;">You're clocked in and on track — 2 days of leave already approved this month.</p> -->
           </div>
           <div class="card">
             <div class="sub">Today's Status</div>

@@ -270,6 +270,8 @@ class UsersController
         ], 201);
     }
 
+    
+
     public function update(Request $request, string $employeeId): Response
     {
         $user = $request->user();
@@ -301,6 +303,8 @@ class UsersController
             'position' => $payload['position'] ?? null,
         ]);
 
+        
+
         if ($updated === null) {
             return Response::error('Unable to update employee', 500);
         }
@@ -308,6 +312,35 @@ class UsersController
         return Response::json($updated->toArray());
     }
 
+    public function delete(Request $request, string $employeeId): Response
+    {
+        $user = $request->user();
+        if ($user === null || $user['role'] !== 'admin') {
+            return Response::error('Forbidden', 403);
+        }
+
+        $existing = $this->users->findByEmployeeId($employeeId);
+        if ($existing === null) {
+            return Response::error('Employee not found', 404);
+        }
+
+        if ($existing->role === 'admin') {
+            return Response::error('Admin accounts cannot be deleted from the employee roster', 400);
+        }
+
+        try {
+            if (!$this->users->deleteByEmployeeId($employeeId)) {
+                return Response::error('Employee not found', 404);
+            }
+        } catch (\PDOException) {
+            return Response::error('Unable to delete employee because they have attendance or leave history', 409);
+        }
+
+        return Response::json(['deleted' => true, 'employee_id' => $employeeId]);
+    }
+
+
+   
     private function shapeLeave(array $req): array
     {
         $leaveType = $req['leave_type'] ?? $req['request_type'] ?? 'other';

@@ -128,7 +128,7 @@ $user = current_user();
                 <text x="70" y="83" text-anchor="middle" fill="#cdb9ab" font-size="10">on-time rate</text>
               </svg>
               <div class="bloom-legend">
-                <div class="lg-item"><span class="lg-dot" style="background:#9aa574;"></span> Onsite · <?= (int) $dashboardStats['employees_onsite'] ?></div>
+                <div class="lg-item"><span class="lg-dot" style="background:#9aa574;"></span> Present · <?= (int) $dashboardStats['employees_onsite'] ?></div>
                 <div class="lg-item"><span class="lg-dot" style="background:#d3ac77;"></span> Late · <?= (int) $dashboardStats['late_arrivals'] ?></div>
                 <div class="lg-item"><span class="lg-dot" style="background:#c26a52;"></span> Absent · <?= (int) $dashboardStats['employees_absent'] ?></div>
               </div>

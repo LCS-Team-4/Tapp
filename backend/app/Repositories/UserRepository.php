@@ -135,6 +135,14 @@ class UserRepository
         return $this->findByEmployeeId($existing->employeeId);
     }
 
+    public function deleteByEmployeeId(string $employeeId): bool
+    {
+        $stmt = Connection::get()->prepare('DELETE FROM users WHERE employee_id = ?');
+        $stmt->execute([$employeeId]);
+
+        return $stmt->rowCount() > 0;
+    }
+
     private function generateRfidUid(string $employeeId): string
     {
         // Preserve the same synthetic-rfid strategy the frontend already used:

@@ -56,6 +56,8 @@ class SettingsController
         return Response::json($this->shape($settings));
     }
 
+
+
     // Shapes the raw DB row into the API response format.
     private function shape(array $settings): array
     {

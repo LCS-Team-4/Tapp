@@ -246,9 +246,26 @@ function wireEmployees() {
     row.querySelector('[data-action="delete"]')?.addEventListener('click', () => {
       const name = row.querySelector('.emp-name')?.textContent ?? '';
       const id = row.dataset.id;
-      confirmDialog(`Remove ${name} (${id}) from the employee roster?`, () => {
-        // Front-end only — no DELETE /api/employees/{id} endpoint yet.
-        row.remove();
+      confirmDialog(`Remove ${name} (${id}) from the employee roster?`, async () => {
+        try {
+          const response = await fetch(
+            `${API_ROOT}/api/admin/employees/${encodeURIComponent(id)}`,
+            {
+              method: 'DELETE',
+              credentials: 'include',
+            }
+          );
+
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            const message = body.error?.message || 'Unable to delete employee';
+            throw new Error(message);
+          }
+
+          row.remove();
+        } catch (error) {
+          window.alert(error.message);
+        }
       });
     });
   }

@@ -234,6 +234,9 @@ class Database:
 
 
     # SAVE ATTENDANCE RECORD
+    # action must be 'in' or 'out' — matches the attendance.action enum
+    # (the old 'CLOCK_IN'/'CLOCK_OUT' values never matched the enum and
+    # would fail on insert).
 
     def save_attendance(
             self,
@@ -241,6 +244,15 @@ class Database:
             action,
             timestamp
         ):
+
+        # Normalize legacy/caller values to the schema enum
+        if action in ("CLOCK_IN", "clock_in", "CHECK_IN"):
+            action = "in"
+        elif action in ("CLOCK_OUT", "clock_out", "CHECK_OUT"):
+            action = "out"
+
+        if action not in ("in", "out"):
+            raise ValueError(f"Invalid attendance action: {action}")
 
 
         query = """

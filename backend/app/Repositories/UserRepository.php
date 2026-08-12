@@ -154,17 +154,44 @@ class UserRepository
 
     private function baseQuery(): string
     {
+        // NOTE: The live hosted schema has no annual_leave_balance column on
+        // users (it lives in the leave_balance table). The coalesce keeps any
+        // query working even if the column is absent; the actual balance is
+        // resolved in hydrate() via fetchLeaveBalance().
         return 'SELECT u.id, u.employee_id, u.rfid_uid, '
             . 'CONCAT_WS(\' \', u.first_name, u.last_name) AS name, '
             . 'u.email, u.password, u.role, u.department, u.position, u.status '
             . 'FROM users u';
     }
 
+    // Resolves the employee's annual leave balance from the leave_balances
+    // table when it exists, falling back to 0.0 when the table (or the row)
+    // is missing so nothing in the app breaks. Balance = allocated - used.
+    private function fetchLeaveBalance(int $userId, string $employeeId): float
+    {
+        try {
+            $stmt = Connection::get()->prepare(
+                'SELECT (allocated_days - used_days) AS balance '
+                . 'FROM leave_balances '
+                . 'WHERE employee_id = ? AND leave_type = \'annual\' LIMIT 1'
+            );
+            $stmt->execute([$employeeId]);
+            $value = $stmt->fetchColumn();
+
+            return $value === false ? 0.0 : (float) $value;
+        } catch (\PDOException) {
+            return 0.0;
+        }
+    }
+
     // Maps the hosted users.role enum (staff/manager/admin) and status
     // (IN/OUT) into the app's vocabulary the same way the old frontend
-    // db_mysql.php did: staff -> employee, manager/admin -> admin; status is
-    // the clock state (IN/OUT), not employment state — every user is
-    // login-eligible regardless.
+    // db_mysql.php did: staff -> employee, manager/admin -> admin.
+    //
+    // status is the live clock state (IN/OUT) from the hosted schema — it is
+    // NOT an employment/account state. Every user is login-eligible
+    // regardless of status. The AttendanceService relies on this field being
+    // the real IN/OUT value as its single source of truth for clock state.
     private function hydrate(array $row): User
     {
         $hostedRole = $row['role'] ?? 'staff';
@@ -179,8 +206,8 @@ class UserRepository
             role: $role,
             department: $row['department'] ?? null,
             position: $row['position'] ?? null,
-            status: 'active',
-            annualLeaveBalance: 0.0,
+            status: $row['status'] ?? 'OUT',
+            annualLeaveBalance: $this->fetchLeaveBalance((int) $row['id'], (string) $row['employee_id']),
         );
     }
 }

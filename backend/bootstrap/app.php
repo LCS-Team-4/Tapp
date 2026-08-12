@@ -46,7 +46,28 @@ register_shutdown_function(function (): void {
     }
 });
 
-Env::load(__DIR__ . '/../.env');
+$backendEnv = realpath(__DIR__ . '/../.env');
+$rootEnv = realpath(__DIR__ . '/../../.env');
+
+$envPath = null;
+if ($backendEnv !== false && is_readable($backendEnv)) {
+    $envPath = $backendEnv;
+} elseif ($rootEnv !== false && is_readable($rootEnv)) {
+    $envPath = $rootEnv;
+} elseif ($backendEnv !== false) {
+    $envPath = $backendEnv;
+} elseif ($rootEnv !== false) {
+    $envPath = $rootEnv;
+}
+
+if ($envPath === null) {
+    Logger::error('Env: no .env path resolved; tried backend and root locations.');
+    Env::load(__DIR__ . '/../.env');
+} else {
+    Logger::info('Env: loading .env from ' . $envPath);
+    Env::load($envPath);
+}
+
 Logger::configure(__DIR__ . '/../' . Env::get('LOG_PATH', 'storage/logs/app.log'));
 
 date_default_timezone_set((string) config('app.timezone', 'UTC'));

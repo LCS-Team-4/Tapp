@@ -95,34 +95,39 @@ class AttendanceRepository
             return null;
         }
 
-        $firstIn = null;
-        $lastOut = null;
+        $totalSeconds = 0;
+        $currentIn = null;
+
         foreach ($events as $event) {
-            if ($firstIn === null && $event['action'] === 'in') {
-                $firstIn = $event['attendance_time'];
+            if ($event['action'] === 'in') {
+                if ($currentIn === null) {
+                    $currentIn = new \DateTimeImmutable($event['attendance_time']);
+                }
+                continue;
             }
-            if ($event['action'] === 'out') {
-                $lastOut = $event['attendance_time'];
+
+            if ($event['action'] === 'out' && $currentIn !== null) {
+                $outTime = new \DateTimeImmutable($event['attendance_time']);
+                $interval = $outTime->getTimestamp() - $currentIn->getTimestamp();
+                if ($interval > 0) {
+                    $totalSeconds += $interval;
+                }
+                $currentIn = null;
             }
         }
 
-        if ($firstIn === null) {
+        if ($currentIn !== null && $fallbackEnd !== null) {
+            $interval = $fallbackEnd->getTimestamp() - $currentIn->getTimestamp();
+            if ($interval > 0) {
+                $totalSeconds += $interval;
+            }
+        }
+
+        if ($totalSeconds === 0) {
             return null;
         }
 
-        if ($lastOut !== null) {
-            $start = new \DateTimeImmutable($firstIn);
-            $end = new \DateTimeImmutable($lastOut);
-
-            return round(($end->getTimestamp() - $start->getTimestamp()) / 3600, 1);
-        }
-
-        if ($fallbackEnd === null) {
-            return null;
-        }
-
-        $start = new \DateTimeImmutable($firstIn);
-        return round(($fallbackEnd->getTimestamp() - $start->getTimestamp()) / 3600, 1);
+        return round($totalSeconds / 3600, 1);
     }
 
     // Recent events for the admin live feed.

@@ -23,3 +23,93 @@
 [2026-08-11 10:28:53] ERROR: Uncaught ArgumentCountError: Too few arguments to function App\Http\Controllers\UsersController::update(), 1 passed in C:\xampp\htdocs\Tapp\backend\app\Http\Router.php on line 100 and exactly 2 expected in C:\xampp\htdocs\Tapp\backend\app\Http\Controllers\UsersController.php:233
 [2026-08-11 10:29:28] ERROR: Uncaught ArgumentCountError: Too few arguments to function App\Http\Controllers\UsersController::update(), 1 passed in C:\xampp\htdocs\Tapp\backend\app\Http\Router.php on line 100 and exactly 2 expected in C:\xampp\htdocs\Tapp\backend\app\Http\Controllers\UsersController.php:233
 [2026-08-11 10:29:28] ERROR: Uncaught ArgumentCountError: Too few arguments to function App\Http\Controllers\UsersController::update(), 1 passed in C:\xampp\htdocs\Tapp\backend\app\Http\Router.php on line 100 and exactly 2 expected in C:\xampp\htdocs\Tapp\backend\app\Http\Controllers\UsersController.php:233
+[2026-08-11 15:39:43] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-11 15:42:23] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-11 15:42:24] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-11 15:42:33] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-11 15:42:55] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-11 15:44:56] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-11 15:45:29] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-11 15:53:39] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-11 15:56:04] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:23
+[2026-08-11 15:56:28] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:23
+[2026-08-11 15:56:38] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 15:56:49] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 15:57:04] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 15:57:11] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:00:07] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:00:52] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:01:38] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:05:02] ERROR: Env: .env file missing or unreadable at C:\xampp\htdocs\Tapp\backend\bootstrap/../../.env
+[2026-08-11 16:05:02] ERROR: Uncaught RuntimeException: Configuration error: .env file missing or unreadable at C:\xampp\htdocs\Tapp\backend\bootstrap/../../.env in C:\xampp\htdocs\Tapp\backend\app\Support\Env.php:13
+[2026-08-11 16:06:08] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:06:29] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:07:56] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:10:01] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:10:55] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-11 16:10:55] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:11:17] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-11 16:11:17] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:11:52] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-11 16:11:52] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.annual_leave_balance' in 'SELECT' in C:\xampp\htdocs\Tapp\backend\app\Repositories\UserRepository.php:150
+[2026-08-11 16:17:36] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-11 16:18:30] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-11 16:22:56] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-11 16:22:57] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-11 16:22:57] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'ON' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:134
+[2026-08-12 08:01:00] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:01:01] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'ON' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:134
+[2026-08-12 08:01:15] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:01:15] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:01:15] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-12 08:01:35] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:01:35] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:01:35] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'ON' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:134
+[2026-08-12 08:07:21] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:07:21] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'ON' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:134
+[2026-08-12 08:08:10] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:08:11] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'ON' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:134
+[2026-08-12 08:08:37] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:09:59] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:09:59] ERROR: Uncaught ParseError: syntax error, unexpected identifier "pending", expecting ")" in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:29
+[2026-08-12 08:10:11] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:10:11] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:10:11] ERROR: Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'lr.user_id' in 'WHERE' in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:142
+[2026-08-12 08:10:35] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:10:37] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:13:55] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:22:51] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:23:08] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:24:19] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:24:40] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:25:22] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:26:09] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:26:24] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:28:38] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:29:09] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:36:58] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 08:47:26] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:03:27] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:13:30] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:13:47] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:14:05] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:16:59] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:19:46] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:19:46] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:20:09] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:20:09] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:22:01] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:22:01] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:28:35] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:28:35] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:28:54] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:28:55] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:29:14] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:29:19] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:29:31] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:29:38] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:30:44] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:31:01] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:31:03] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:31:17] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:31:44] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env

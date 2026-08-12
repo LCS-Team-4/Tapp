@@ -4,43 +4,139 @@ namespace App\Services;
 
 use App\Exceptions\ValidationException;
 use App\Repositories\AttendanceRepository;
+use App\Repositories\UserRepository;
 
 // The hosted schema stores one row per scan event (action 'in'/'out').
-// The state machine: clock in creates an 'in' event, clock out creates an
-// 'out' event. The latest event determines current state.
+// The state machine is driven by users.status ('IN'/'OUT') — the single
+// source of truth for whether an employee is currently clocked in. The
+// attendance table is a pure event log; each toggle appends one 'in' or
+// 'out' row and flips users.status atomically in the same transaction.
 class AttendanceService
 {
+    // Minimum seconds between two clock events for the same employee.
+    // Mirrors the Pi's cooldown intent (COOLDOWN_MINUTES) and prevents
+    // double-click / rapid toggle spam from creating junk rows.
+    public const COOLDOWN_SECONDS = 15;
+
     public function __construct(
         private readonly AttendanceRepository $attendanceRepository = new AttendanceRepository(),
+        private readonly UserRepository $userRepository = new UserRepository(),
     ) {
     }
 
     // Toggle clock in/out for the given employee_id (web portal action).
+    // Uses users.status as the source of truth, flips it atomically, and
+    // appends the matching event row in the same transaction.
     public function toggle(string $employeeId, string $method = 'manual'): array
     {
-        $latest = $this->attendanceRepository->findLatestEvent($employeeId);
-
-        if ($latest === null || $latest['action'] === 'out') {
-            $this->attendanceRepository->recordEvent($employeeId, 'in', $method);
-            return ['action' => 'clocked_in'];
+        $user = $this->userRepository->findByEmployeeId($employeeId);
+        if ($user === null) {
+            return ['action' => 'unknown_employee'];
         }
 
-        $this->attendanceRepository->recordEvent($employeeId, 'out', $method);
-        return ['action' => 'clocked_out'];
+        $this->assertNotOnCooldown($employeeId);
+
+        // Atomic flip of users.status + append of the event row. The
+        // conditional UPDATE makes the read-modify-write race-safe: if two
+        // requests both see 'OUT', only the first UPDATE matches; the second
+        // sees the already-flipped row and falls through to the other branch.
+        $pdo = \App\Database\Connection::get();
+        $pdo->beginTransaction();
+
+        try {
+            $stmt = $pdo->prepare(
+                'UPDATE users SET status = ?, updated_at = NOW() WHERE employee_id = ? AND status = ?'
+            );
+            $stmt->execute([
+                $user->status === 'IN' ? 'OUT' : 'IN',
+                $employeeId,
+                $user->status,
+            ]);
+
+            $flipped = $stmt->rowCount() > 0;
+
+            if ($flipped) {
+                $action = $user->status === 'IN' ? 'out' : 'in';
+                $this->attendanceRepository->recordEvent($employeeId, $action, $method);
+            } else {
+                // Another concurrent request already flipped the status.
+                // Re-read to report the actual resulting state.
+                $fresh = $this->userRepository->findByEmployeeId($employeeId);
+                $action = $fresh !== null && $fresh->status === 'IN' ? 'in' : 'out';
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+
+        return ['action' => $action === 'in' ? 'clocked_in' : 'clocked_out'];
     }
 
     // Explicit clock-in — used by the Pi terminal's redeem path.
     public function clockIn(string $employeeId, string $method = 'device'): array
     {
-        $this->attendanceRepository->recordEvent($employeeId, 'in', $method);
-        return ['action' => 'clocked_in'];
+        return $this->setStatus($employeeId, 'IN', $method);
     }
 
     // Explicit clock-out.
     public function clockOut(string $employeeId, string $method = 'device'): array
     {
-        $this->attendanceRepository->recordEvent($employeeId, 'out', $method);
-        return ['action' => 'clocked_out'];
+        return $this->setStatus($employeeId, 'OUT', $method);
+    }
+
+    // Set an explicit clock state, idempotently: if the user is already in
+    // the requested state, no event is appended (no duplicate rows).
+    private function setStatus(string $employeeId, string $targetStatus, string $method): array
+    {
+        $user = $this->userRepository->findByEmployeeId($employeeId);
+        if ($user === null) {
+            return ['action' => 'unknown_employee'];
+        }
+
+        $this->assertNotOnCooldown($employeeId);
+
+        $pdo = \App\Database\Connection::get();
+        $pdo->beginTransaction();
+
+        try {
+            $stmt = $pdo->prepare(
+                'UPDATE users SET status = ?, updated_at = NOW() WHERE employee_id = ? AND status <> ?'
+            );
+            $stmt->execute([$targetStatus, $employeeId, $targetStatus]);
+
+            if ($stmt->rowCount() > 0) {
+                $action = $targetStatus === 'IN' ? 'in' : 'out';
+                $this->attendanceRepository->recordEvent($employeeId, $action, $method);
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+
+        return ['action' => $targetStatus === 'IN' ? 'clocked_in' : 'clocked_out'];
+    }
+
+    // Rejects a clock event if one was recorded too recently for this
+    // employee (prevents double-tap / rapid spam).
+    private function assertNotOnCooldown(string $employeeId): void
+    {
+        $latest = $this->attendanceRepository->findLatestEvent($employeeId);
+        if ($latest === null) {
+            return;
+        }
+
+        $lastTime = strtotime($latest['attendance_time']);
+        if ($lastTime === false) {
+            return;
+        }
+
+        if ((time() - $lastTime) < self::COOLDOWN_SECONDS) {
+            throw new ValidationException('Please wait before scanning again');
+        }
     }
 
     // Determine the current status for an employee today:
@@ -78,10 +174,7 @@ class AttendanceService
             }
         }
 
-        $hours = null;
-        if ($clockIn !== null && $clockOut !== null) {
-            $hours = $this->attendanceRepository->computeDailyHours($employeeId, date('Y-m-d'));
-        }
+        $hours = $this->attendanceRepository->computeDailyHoursFromEvents($events, new \DateTimeImmutable('now'));
 
         return [
             'status' => $status,
@@ -123,7 +216,7 @@ class AttendanceService
                 'date_label' => $dt->format('D, j M'),
                 'clock_in' => $firstIn !== null ? substr($firstIn, 11, 5) : null,
                 'clock_out' => $lastOut !== null ? substr($lastOut, 11, 5) : null,
-                'total_hours' => $this->attendanceRepository->computeDailyHours($employeeId, $day),
+                'total_hours' => $this->attendanceRepository->computeDailyHoursFromEvents($dayEvents),
                 'status' => $this->dayStatus($firstIn, $lastOut),
             ];
         }

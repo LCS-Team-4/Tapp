@@ -25,11 +25,11 @@ class LeaveRepository
             $type = $this->normalizeRequestType($payload['type'] ?? $payload['leave_type'] ?? $payload['request_type'] ?? null);
 
             $stmt = Connection::get()->prepare(
-                'INSERT INTO leave_requests (user_id, request_type, start_date, end_date, reason, status, created_at) '
-                . "VALUES (:user_id, :request_type, :start_date, :end_date, :reason, 'pending', NOW())"
+                'INSERT INTO leave_requests (employee_id, request_type, start_date, end_date, reason, status, created_at) '
+                . "VALUES (:employee_id, :request_type, :start_date, :end_date, :reason, 'pending', NOW())"
             );
             $stmt->execute([
-                'user_id' => $userId,
+                'employee_id' => $userId,
                 'request_type' => $type,
                 'start_date' => $payload['start_date'] ?? null,
                 'end_date' => $payload['end_date'] ?? null,
@@ -81,7 +81,7 @@ class LeaveRepository
             'SELECT lr.*, lr.request_type AS leave_type, u.employee_id, '
             . "CONCAT_WS(' ', u.first_name, u.last_name) AS name, u.email "
             . 'FROM leave_requests lr '
-            . 'LEFT JOIN users u ON u.id = lr.user_id WHERE lr.id = :id LIMIT 1'
+            . 'LEFT JOIN users u ON u.id = lr.employee_id WHERE lr.id = :id LIMIT 1'
         );
         $stmt->execute(['id' => $leaveId]);
 
@@ -105,7 +105,7 @@ class LeaveRepository
         $params = [];
 
         if ($role !== 'admin') {
-            $query .= ' WHERE lr.user_id = :user_id';
+            $query .= ' WHERE lr.employee_id = :user_id';
             $params['user_id'] = $userId;
         }
 
@@ -129,7 +129,7 @@ class LeaveRepository
                 'SELECT lr.*, lr.request_type AS leave_type, u.employee_id, '
                 . "CONCAT_WS(' ', u.first_name, u.last_name) AS name, u.email "
                 . 'FROM leave_requests lr '
-                . 'LEFT JOIN users u ON u.id = lr.user_id ORDER BY lr.created_at DESC'
+                . 'LEFT JOIN users u ON u.id = lr.employee_id ORDER BY lr.created_at DESC'
             );
             $stmt->execute();
         } else {
@@ -137,7 +137,7 @@ class LeaveRepository
                 'SELECT lr.*, lr.request_type AS leave_type, u.employee_id, '
                 . "CONCAT_WS(' ', u.first_name, u.last_name) AS name, u.email "
                 . 'FROM leave_requests lr '
-                . 'LEFT JOIN users u ON u.id = lr.user_id WHERE lr.user_id = :user_id ORDER BY lr.created_at DESC'
+                . 'LEFT JOIN users u ON u.id = lr.employee_id WHERE lr.employee_id = :user_id ORDER BY lr.created_at DESC'
             );
             $stmt->execute(['user_id' => $userId]);
         }

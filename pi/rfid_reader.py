@@ -1,4 +1,5 @@
 from evdev import InputDevice, categorize, ecodes, list_devices
+import time
 
 
 class RFIDReader:
@@ -29,6 +30,10 @@ class RFIDReader:
 
 
     # WAIT FOR CARD AND READ UID
+    # Debounce: some USB readers emit the same UID twice per physical tap
+    # (key-down repeat), which produced exact-duplicate attendance rows in
+    # the live data. If the same UID is read again within DEBOUNCE_SECONDS,
+    # it is ignored and the loop keeps waiting for a fresh card.
 
     def read_card(self):
 
@@ -49,6 +54,10 @@ class RFIDReader:
 
         }
 
+        DEBOUNCE_SECONDS = 2.0
+        last_uid = None
+        last_read_time = 0.0
+
         uid = ""
 
         try:
@@ -63,9 +72,20 @@ class RFIDReader:
 
                         if key.scancode == ecodes.KEY_ENTER:
 
+                            now = time.time()
+
+                            if uid == last_uid and (now - last_read_time) < DEBOUNCE_SECONDS:
+                                print("Duplicate card read, ignoring:", uid)
+                                uid = ""
+                                continue
+
                             print("Card UID:", uid)
 
-                            return uid
+                            last_uid = uid
+                            last_read_time = now
+                            uid = ""
+
+                            return last_uid
 
                         elif key.scancode in keys:
 

@@ -20,7 +20,10 @@ class Authenticate
 
         $user = (new UserRepository())->findById((int) $userId);
 
-        if ($user === null || $user->status !== 'active') {
+        // users.status in the hosted schema is the clock state (IN/OUT),
+        // not an employment/account state — every user is login-eligible
+        // regardless of whether they are currently clocked in or out.
+        if ($user === null) {
             return Response::error('Unauthorized', 401);
         }
 

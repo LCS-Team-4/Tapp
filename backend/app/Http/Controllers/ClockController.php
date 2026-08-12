@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ValidationException;
 use App\Http\Request;
 use App\Http\Response;
 use App\Repositories\UserRepository;
@@ -34,6 +35,8 @@ class ClockController
                 'employee_name' => $user->name,
                 'employee_id' => $user->employeeId,
             ]);
+        } catch (ValidationException $e) {
+            return Response::error($e->getMessage(), 429);
         } catch (\Throwable $e) {
             return Response::error($e->getMessage(), 500);
         }
@@ -47,7 +50,11 @@ class ClockController
             return Response::error('Unauthorized', 401);
         }
 
-        $result = (new AttendanceService())->toggle($user['employee_id'], 'manual');
+        try {
+            $result = (new AttendanceService())->toggle($user['employee_id'], 'manual');
+        } catch (ValidationException $e) {
+            return Response::error($e->getMessage(), 429);
+        }
 
         return Response::json([
             'action' => $result['action'],

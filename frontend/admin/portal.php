@@ -128,7 +128,7 @@ $user = current_user();
                 <text x="70" y="83" text-anchor="middle" fill="#cdb9ab" font-size="10">on-time rate</text>
               </svg>
               <div class="bloom-legend">
-                <div class="lg-item"><span class="lg-dot" style="background:#9aa574;"></span> Present · <?= (int) $dashboardStats['employees_onsite'] ?></div>
+                <div class="lg-item"><span class="lg-dot" style="background:#9aa574;"></span> Onsite · <?= (int) $dashboardStats['employees_onsite'] ?></div>
                 <div class="lg-item"><span class="lg-dot" style="background:#d3ac77;"></span> Late · <?= (int) $dashboardStats['late_arrivals'] ?></div>
                 <div class="lg-item"><span class="lg-dot" style="background:#c26a52;"></span> Absent · <?= (int) $dashboardStats['employees_absent'] ?></div>
               </div>
@@ -236,7 +236,7 @@ $user = current_user();
               <thead><tr><th>Employee</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Status</th></tr></thead>
               <tbody id="attendance-tbody">
                 <?php foreach ($attendanceMonitoring as $entry): ?>
-                <?php $status = attendance_status_badge($entry['status']); ?>
+                <?php $status = attendance_status_badge($entry['status'], $entry['is_late'] ?? false); ?>
                 <tr data-name="<?= htmlspecialchars($entry['name']) ?>">
                   <td><div class="emp-cell"><div class="avatar"><?= htmlspecialchars($entry['initials']) ?></div><div class="emp-name"><?= htmlspecialchars($entry['name']) ?></div></div></td>
                   <td><?= htmlspecialchars($entry['clock_in'] ?? '—') ?></td>

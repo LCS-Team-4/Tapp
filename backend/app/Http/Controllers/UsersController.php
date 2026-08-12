@@ -92,6 +92,7 @@ class UsersController
                     'position' => $u['position'],
                     'status' => 'active',
                     'today_attendance_status' => $todayInfo['status'] ?? 'absent',
+                    'today_is_late' => $todayInfo['is_late'] ?? false,
                     'initials' => $this->initials($u['name']),
                 ];
             }
@@ -107,6 +108,7 @@ class UsersController
                 'clock_out' => $row['clock_out'],
                 'total_hours' => $row['total_hours'],
                 'status' => $row['status'],
+                'is_late' => $row['is_late'] ?? false,
             ];
         }, $attendanceRows);
 
@@ -130,21 +132,43 @@ class UsersController
             }
         }
 
-        // Dashboard stats from attendance
+        // Dashboard stats from attendance. Presence and lateness are kept
+        // separate: 'status' reflects whether the employee is currently on
+        // site (onsite = latest event is a clock-in; present = clocked in
+        // today but has since clocked out), and 'is_late' describes the
+        // clock-in time relative to working hours. So:
+        //   - employees_onsite      = currently on site right now (onsite)
+        //   - present_count         = clocked in earlier but already left
+        //   - checked_in_today      = everyone who clocked in at all
+        //                             (onsite + present)
+        //   - employees_absent      = non-admin employees with no clock-in
+        //   - on_time_count         = checked in and clocked in on time
+        //   - late_arrivals         = checked in after the late cutoff
         $onsite = 0;
         $present = 0;
-        $absent = 0;
-        $late = 0;
+        $lateToday = 0;
         foreach ($attendanceRows as $row) {
             if ($row['status'] === 'onsite') $onsite++;
             if ($row['status'] === 'present') $present++;
-            if ($row['status'] === 'absent') $absent++;
-            if ($row['status'] === 'late') $late++;
+            if ($row['is_late'] ?? false) $lateToday++;
         }
 
-        $totalOnTime = $present + $onsite;
-        $totalTracked = count($attendanceRows) > 0 ? count($attendanceRows) : 1;
-        $onTimePct = round(($totalOnTime / $totalTracked) * 100);
+        $checkedInToday = $present + $onsite;
+        $onTimeCount = max(0, $checkedInToday - $lateToday);
+        $onSiteNow = $onsite;
+
+        // Employees who never clocked in today are absent. Only non-admin
+        // employees count toward the workforce.
+        $nonAdminCount = 0;
+        foreach ($allUsers as $u) {
+            if ($u['role'] !== 'admin') {
+                $nonAdminCount++;
+            }
+        }
+        $absent = max(0, $nonAdminCount - $checkedInToday);
+
+        $totalTracked = $checkedInToday > 0 ? $checkedInToday : 1;
+        $onTimePct = round(($onTimeCount / $totalTracked) * 100);
 
         return Response::json([
             'employees' => $employees,
@@ -160,10 +184,12 @@ class UsersController
                 'late_threshold_minutes' => (int) ($settings['late_threshold_minutes'] ?? 10),
             ],
             'dashboard_stats' => [
-                'employees_onsite' => $onsite,
-                'checked_in_today' => $present + $onsite,
-                'late_arrivals' => $lateCount,
+                'employees_onsite' => $onSiteNow,
+                'present_count' => $present,
+                'checked_in_today' => $checkedInToday,
+                'late_arrivals' => $lateToday,
                 'employees_absent' => $absent,
+                'on_time_count' => $onTimeCount,
                 'on_time_rate_pct' => $onTimePct,
             ],
         ]);

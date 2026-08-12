@@ -1,9 +1,12 @@
 <?php
 require_once __DIR__ . '/auth.php';
 
-// If already logged in, skip straight to the right portal
+// If already logged in, skip straight to the right portal.
+// Build the path relative to the project root so it works whether TAPP is
+// deployed at the domain root or under a subdirectory (e.g. /tapp/).
+$base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
 if (!empty($_SESSION['authenticated'])) {
-    header('Location: ' . ($_SESSION['role'] === 'admin' ? '/admin/portal.php' : '/employee/portal.php'));
+    header('Location: ' . $base . ($_SESSION['role'] === 'admin' ? '/admin/portal.php' : '/employee/portal.php'));
     exit;
 }
 

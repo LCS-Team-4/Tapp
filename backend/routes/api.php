@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClockController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TokenController;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\RequireAdmin;
@@ -26,6 +27,7 @@ $router->get('/auth/session', [$authController, 'session'], [Authenticate::class
 $tokenController = new TokenController();
 $clockController = new ClockController();
 $leaveController = new LeaveController();
+$settingsController = new SettingsController();
 $usersController = new UsersController();
 
 $router->post('/clock/token', [$tokenController, 'issue'], [Authenticate::class]);
@@ -46,3 +48,5 @@ $router->get('/admin/dashboard', [$usersController, 'dashboard'], [Authenticate:
 $router->get('/admin/employees', [$usersController, 'employees'], [Authenticate::class, RequireAdmin::class]);
 $router->post('/admin/employees', [$usersController, 'register'], [Authenticate::class, RequireAdmin::class]);
 $router->put('/admin/employees/{employeeId}', [$usersController, 'update'], [Authenticate::class, RequireAdmin::class]);
+$router->get('/admin/settings', [$settingsController, 'get'], [Authenticate::class, RequireAdmin::class]);
+$router->put('/admin/settings', [$settingsController, 'update'], [Authenticate::class, RequireAdmin::class]);

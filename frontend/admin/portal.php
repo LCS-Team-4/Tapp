@@ -135,6 +135,33 @@ $user = current_user();
             </div>
           </div>
         </div>
+
+        <!-- Late arrivals list — employees who clocked in after the
+             configured working-hours start + late threshold. -->
+        <div class="card" style="margin-top:18px;">
+          <div class="section-head">
+            <h3>Late Arrivals</h3>
+            <span class="muted">Working hours start <?= htmlspecialchars($systemSettings['working_hours_start']) ?> · <?= (int) $systemSettings['late_threshold_minutes'] ?> min grace</span>
+          </div>
+          <?php if (count($lateArrivalsList) === 0): ?>
+            <p class="muted" style="padding:12px 0;">No late arrivals today. 🎉</p>
+          <?php else: ?>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Employee</th><th>Clock In</th><th>Minutes Late</th></tr></thead>
+                <tbody>
+                  <?php foreach ($lateArrivalsList as $late): ?>
+                  <tr>
+                    <td><div class="emp-cell"><div class="avatar"><?= htmlspecialchars(initials_of($late['name'])) ?></div><div class="emp-name"><?= htmlspecialchars($late['name']) ?></div></div></td>
+                    <td><?= htmlspecialchars($late['clock_in']) ?></td>
+                    <td><span class="badge badge-late"><?= (int) $late['minutes_late'] ?> min</span></td>
+                  </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
+        </div>
       </div>
 
       <!-- Employees -->

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ValidationException;
 use App\Repositories\AttendanceRepository;
+use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
 
 // The hosted schema stores one row per scan event (action 'in'/'out').
@@ -21,6 +22,7 @@ class AttendanceService
     public function __construct(
         private readonly AttendanceRepository $attendanceRepository = new AttendanceRepository(),
         private readonly UserRepository $userRepository = new UserRepository(),
+        private readonly SettingsRepository $settingsRepository = new SettingsRepository(),
     ) {
     }
 
@@ -269,7 +271,9 @@ class AttendanceService
         }, $this->attendanceRepository->findRecentFeed($limit));
     }
 
-    // Today's attendance rows for the admin monitoring table.
+    // Today's attendance rows for the admin monitoring table. Each row's
+    // status is 'late' when the employee's first clock-in today was after
+    // the configured working-hours start + late threshold (from settings).
     public function todayAll(): array
     {
         $events = $this->attendanceRepository->findTodayAll();
@@ -280,6 +284,9 @@ class AttendanceService
             $empId = $event['employee_id'];
             $byEmployee[$empId][] = $event;
         }
+
+        $settings = $this->settingsRepository->get();
+        $lateCutoff = $this->lateCutoffTime($settings);
 
         $rows = [];
         foreach ($byEmployee as $empId => $empEvents) {
@@ -294,17 +301,104 @@ class AttendanceService
                 }
             }
 
+            $status = $this->dayStatus($firstIn, $lastOut);
+            if ($status !== 'absent' && $firstIn !== null && $lateCutoff !== null) {
+                $clockInTime = substr($firstIn, 11, 8); // HH:MM:SS
+                if ($clockInTime > $lateCutoff) {
+                    $status = 'late';
+                }
+            }
+
             $rows[] = [
                 'employee_id' => $empId,
                 'name' => $empEvents[0]['name'] ?? '',
                 'clock_in' => $firstIn !== null ? substr($firstIn, 11, 5) : null,
                 'clock_out' => $lastOut !== null ? substr($lastOut, 11, 5) : null,
                 'total_hours' => null,
-                'status' => $this->dayStatus($firstIn, $lastOut),
+                'status' => $status,
             ];
         }
 
         return $rows;
+    }
+
+    // Counts how many employees clocked in late today, based on the
+    // configured working-hours start + late threshold from settings.
+    public function lateArrivalsCount(): int
+    {
+        $rows = $this->todayAll();
+        $count = 0;
+        foreach ($rows as $row) {
+            if ($row['status'] === 'late') {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    // Returns the list of employees who clocked in late today, with their
+    // clock-in time and how late they were (in minutes).
+    public function lateArrivalsList(): array
+    {
+        $rows = $this->todayAll();
+        $settings = $this->settingsRepository->get();
+        $lateCutoff = $this->lateCutoffTime($settings);
+
+        $late = [];
+        foreach ($rows as $row) {
+            if ($row['status'] !== 'late' || $row['clock_in'] === null || $lateCutoff === null) {
+                continue;
+            }
+
+            $clockIn = $row['clock_in']; // HH:MM
+            $cutoff = substr($lateCutoff, 0, 5); // HH:MM
+
+            $clockInMinutes = $this->timeToMinutes($clockIn);
+            $cutoffMinutes = $this->timeToMinutes($cutoff);
+            $minutesLate = max(0, $clockInMinutes - $cutoffMinutes);
+
+            $late[] = [
+                'employee_id' => $row['employee_id'],
+                'name' => $row['name'],
+                'clock_in' => $clockIn,
+                'minutes_late' => $minutesLate,
+            ];
+        }
+
+        // Sort by most late first
+        usort($late, fn ($a, $b) => $b['minutes_late'] <=> $a['minutes_late']);
+
+        return $late;
+    }
+
+    // Computes the cutoff time (HH:MM:SS) after which a clock-in is
+    // considered late: working_hours_start + late_threshold_minutes.
+    private function lateCutoffTime(array $settings): ?string
+    {
+        $start = $settings['working_hours_start'] ?? null;
+        if ($start === null || $start === '') {
+            return null;
+        }
+
+        $threshold = (int) ($settings['late_threshold_minutes'] ?? 10);
+
+        // Parse HH:MM or HH:MM:SS
+        $parts = explode(':', (string) $start);
+        $hours = (int) ($parts[0] ?? 0);
+        $minutes = (int) ($parts[1] ?? 0);
+        $seconds = (int) ($parts[2] ?? 0);
+
+        $totalMinutes = $hours * 60 + $minutes + $threshold;
+        $newHours = intdiv($totalMinutes, 60) % 24;
+        $newMinutes = $totalMinutes % 60;
+
+        return sprintf('%02d:%02d:%02d', $newHours, $newMinutes, $seconds);
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        $parts = explode(':', $time);
+        return (int) ($parts[0] ?? 0) * 60 + (int) ($parts[1] ?? 0);
     }
 
     private function dayStatus(?string $clockIn, ?string $clockOut): string

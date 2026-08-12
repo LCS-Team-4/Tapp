@@ -113,3 +113,54 @@
 [2026-08-12 09:31:03] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
 [2026-08-12 09:31:17] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
 [2026-08-12 09:31:44] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:37:43] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:37:43] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:38:06] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:38:07] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:44:38] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:44:45] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:44:51] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:48:28] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:48:51] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:49:40] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 09:50:02] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:08:34] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:10:27] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:11:01] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:11:02] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:11:48] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:11:48] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:12:22] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:12:34] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:12:35] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:12:35] ERROR: Uncaught PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'digitcexse_db2.settings' doesn't exist in C:\xampp\htdocs\Tapp\backend\app\Repositories\SettingsRepository.php:15
+[2026-08-12 10:35:18] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:35:18] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:48:55] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:48:55] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:49:08] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:49:08] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:49:09] ERROR: Uncaught PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'digitcexse_db2.settings' doesn't exist in C:\xampp\htdocs\Tapp\backend\app\Repositories\SettingsRepository.php:15
+[2026-08-12 10:49:13] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:49:13] ERROR: Uncaught PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'digitcexse_db2.settings' doesn't exist in C:\xampp\htdocs\Tapp\backend\app\Repositories\SettingsRepository.php:15
+[2026-08-12 10:49:27] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:49:28] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:49:48] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:49:49] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:49:50] ERROR: Uncaught PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'digitcexse_db2.settings' doesn't exist in C:\xampp\htdocs\Tapp\backend\app\Repositories\SettingsRepository.php:15
+[2026-08-12 10:50:01] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:50:01] ERROR: Uncaught PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'digitcexse_db2.settings' doesn't exist in C:\xampp\htdocs\Tapp\backend\app\Repositories\SettingsRepository.php:15
+[2026-08-12 10:52:25] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:53:09] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:53:33] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:53:37] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:53:38] ERROR: Uncaught PDOException: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'digitcexse_db2.settings' doesn't exist in C:\xampp\htdocs\Tapp\backend\app\Repositories\SettingsRepository.php:15
+[2026-08-12 10:55:00] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:55:07] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:55:53] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:56:01] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 10:57:50] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 11:00:41] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 11:01:23] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 11:05:25] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-12 11:05:43] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env

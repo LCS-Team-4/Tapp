@@ -31,6 +31,9 @@ $liveFeed = $data['live_feed'] ?? [];
 
 $attendanceMonitoring = $data['attendance_monitoring'] ?? [];
 
+// Employees who clocked in after the working-hours start + late threshold.
+$lateArrivalsList = $data['late_arrivals_list'] ?? [];
+
 // ---- 005_create_leave ----
 $leaveTypeLabels = [
     'annual'    => 'Annual Leave',
@@ -45,7 +48,9 @@ $pendingLeaveRequests = $data['pending_leave_requests'] ?? [];
 $leaveHistory = $data['leave_history'] ?? [];
 
 // ---- 006_create_settings ----
-$systemSettings = [
+// Settings come from the backend API (the settings table). Fall back to
+// sensible defaults if the API didn't return them.
+$systemSettings = $data['system_settings'] ?? [
     'company_name'           => 'TAPP Botanical Co.',
     'working_hours_start'    => '08:00',
     'working_hours_end'      => '17:00',
@@ -120,4 +125,14 @@ function feed_text(string $eventType): string
         'leave_decided' => 'had a leave request decided',
     ];
     return $texts[$eventType] ?? $eventType;
+}
+
+// Extracts initials from a full name, e.g. "Sarah Lee" -> "SL".
+function initials_of(string $name): string
+{
+    $parts = array_filter(array_map('trim', explode(' ', $name)));
+    if (count($parts) === 0) {
+        return '??';
+    }
+    return strtoupper(implode('', array_map(fn ($p) => $p[0], $parts)));
 }

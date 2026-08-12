@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Request;
 use App\Http\Response;
+use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
 use App\Services\AttendanceService;
 
@@ -67,6 +68,10 @@ class UsersController
         $feed = $attendance->feed();
         $leaveRepo = new \App\Repositories\LeaveRepository();
         $leaveRequests = $leaveRepo->listForUser(0, 'admin');
+        $settingsRepo = new SettingsRepository();
+        $settings = $settingsRepo->get();
+        $lateArrivals = $attendance->lateArrivalsList();
+        $lateCount = count($lateArrivals);
 
         // Employees: map to the shape admin/data.php expects
         $employees = [];
@@ -129,10 +134,12 @@ class UsersController
         $onsite = 0;
         $present = 0;
         $absent = 0;
+        $late = 0;
         foreach ($attendanceRows as $row) {
             if ($row['status'] === 'onsite') $onsite++;
             if ($row['status'] === 'present') $present++;
             if ($row['status'] === 'absent') $absent++;
+            if ($row['status'] === 'late') $late++;
         }
 
         $totalOnTime = $present + $onsite;
@@ -145,10 +152,17 @@ class UsersController
             'pending_leave_requests' => $pendingLeaveRequests,
             'leave_history' => $leaveHistory,
             'live_feed' => $feed,
+            'late_arrivals_list' => $lateArrivals,
+            'system_settings' => [
+                'company_name' => $settings['company_name'] ?? 'TAPP Botanical Co.',
+                'working_hours_start' => substr((string) ($settings['working_hours_start'] ?? '08:00:00'), 0, 5),
+                'working_hours_end' => substr((string) ($settings['working_hours_end'] ?? '17:00:00'), 0, 5),
+                'late_threshold_minutes' => (int) ($settings['late_threshold_minutes'] ?? 10),
+            ],
             'dashboard_stats' => [
                 'employees_onsite' => $onsite,
                 'checked_in_today' => $present + $onsite,
-                'late_arrivals' => 0,
+                'late_arrivals' => $lateCount,
                 'employees_absent' => $absent,
                 'on_time_rate_pct' => $onTimePct,
             ],

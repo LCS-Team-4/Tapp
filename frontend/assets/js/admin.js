@@ -668,10 +668,33 @@ function wireSettings() {
   }
   [nameEl, startEl, endEl, thresholdEl].forEach((el) => el?.addEventListener('input', markDirty));
 
-  saveBtn.addEventListener('click', () => {
-    // Front-end only — no PATCH /api/settings endpoint yet.
-    successEl.style.display = 'block';
-    saveBtn.disabled = true;
+  saveBtn.addEventListener('click', async () => {
+    const payload = {
+      company_name: nameEl.value.trim(),
+      working_hours_start: startEl.value,
+      working_hours_end: endEl.value,
+      late_threshold_minutes: Number(thresholdEl.value),
+    };
+
+    try {
+      const response = await fetch(`${API_ROOT}/api/admin/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = body.error?.message || 'Unable to save settings';
+        throw new Error(message);
+      }
+
+      successEl.style.display = 'block';
+      saveBtn.disabled = true;
+    } catch (error) {
+      alert(error.message);
+    }
   });
 }
 

@@ -301,21 +301,29 @@ class AttendanceService
                 }
             }
 
-            $status = $this->dayStatus($firstIn, $lastOut);
+            // The status reflects whether the employee is currently on site:
+            // when the latest event today is an 'in' they are still onsite,
+            // when it's an 'out' they have left for the day and count as
+            // 'present'. 'absent' only when they never clocked in at all.
+            $status = $this->dayStatusFromEvents($empEvents);
+            $isLate = false;
             if ($status !== 'absent' && $firstIn !== null && $lateCutoff !== null) {
                 $clockInTime = substr($firstIn, 11, 8); // HH:MM:SS
                 if ($clockInTime > $lateCutoff) {
-                    $status = 'late';
+                    $isLate = true;
                 }
             }
+
+            $hours = $this->attendanceRepository->computeDailyHoursFromEvents($empEvents, new \DateTimeImmutable('now'));
 
             $rows[] = [
                 'employee_id' => $empId,
                 'name' => $empEvents[0]['name'] ?? '',
                 'clock_in' => $firstIn !== null ? substr($firstIn, 11, 5) : null,
                 'clock_out' => $lastOut !== null ? substr($lastOut, 11, 5) : null,
-                'total_hours' => null,
+                'total_hours' => $hours,
                 'status' => $status,
+                'is_late' => $isLate,
             ];
         }
 
@@ -329,7 +337,7 @@ class AttendanceService
         $rows = $this->todayAll();
         $count = 0;
         foreach ($rows as $row) {
-            if ($row['status'] === 'late') {
+            if ($row['is_late']) {
                 $count++;
             }
         }
@@ -346,7 +354,7 @@ class AttendanceService
 
         $late = [];
         foreach ($rows as $row) {
-            if ($row['status'] !== 'late' || $row['clock_in'] === null || $lateCutoff === null) {
+            if (!$row['is_late'] || $row['clock_in'] === null || $lateCutoff === null) {
                 continue;
             }
 
@@ -410,6 +418,27 @@ class AttendanceService
             return 'onsite';
         }
         return 'present';
+    }
+
+    // Determines the current presence status from today's event history:
+    // - 'absent' if there was never a clock-in today
+    // - 'onsite' if the latest event is a clock-in (currently on site)
+    // - 'present' if the latest event is a clock-out (left for the day)
+    private function dayStatusFromEvents(array $events): string
+    {
+        $hasClockIn = false;
+        foreach ($events as $event) {
+            if ($event['action'] === 'in') {
+                $hasClockIn = true;
+                break;
+            }
+        }
+        if (!$hasClockIn) {
+            return 'absent';
+        }
+
+        $latest = $events[count($events) - 1];
+        return $latest['action'] === 'out' ? 'present' : 'onsite';
     }
 
     private function formatTime(string $datetime): string

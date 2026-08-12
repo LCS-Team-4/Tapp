@@ -21,9 +21,11 @@ $departmentOptions = ['All departments', 'Design', 'Engineering', 'Operations', 
 // ---- 003_create_attendance ----
 $dashboardStats = $data['dashboard_stats'] ?? [
     'employees_onsite'   => 0,
+    'present_count'      => 0,
     'checked_in_today'   => 0,
     'late_arrivals'      => 0,
     'employees_absent'   => 0,
+    'on_time_count'      => 0,
     'on_time_rate_pct'   => 0,
 ];
 
@@ -84,23 +86,30 @@ $reportTiles = [
 function employee_status_badge(array $emp): array
 {
     $attendanceBadge = [
-        'onsite' => ['class' => 'badge-onsite', 'label' => 'Onsite'],
-        'late'   => ['class' => 'badge-late', 'label' => 'Late Today'],
+        'onsite'  => ['class' => 'badge-onsite', 'label' => 'Onsite'],
+        'present' => ['class' => 'badge-present', 'label' => 'Present'],
     ];
     $employmentBadge = [
         'active'   => ['class' => 'badge-present', 'label' => 'Active'],
         'inactive' => ['class' => 'badge-absent', 'label' => 'Inactive'],
     ];
+    // Lateness is tracked separately from presence — a late arrival is still
+    // onsite, but the badge favors the more noteworthy "Late Today" flag.
+    if ($emp['today_is_late'] ?? false) {
+        return ['class' => 'badge-late', 'label' => 'Late Today'];
+    }
     return $attendanceBadge[$emp['today_attendance_status']] ?? $employmentBadge[$emp['status']];
 }
 
-function attendance_status_badge(string $status): array
+function attendance_status_badge(string $status, bool $isLate = false): array
 {
+    if ($isLate) {
+        return ['class' => 'badge-late', 'label' => 'Late'];
+    }
     $badges = [
         'present' => ['class' => 'badge-present', 'label' => 'Present'],
         'onsite'  => ['class' => 'badge-onsite', 'label' => 'Currently Onsite'],
         'absent'  => ['class' => 'badge-absent', 'label' => 'Absent'],
-        'late'    => ['class' => 'badge-late', 'label' => 'Late'],
     ];
     return $badges[$status] ?? ['class' => '', 'label' => ucfirst($status)];
 }

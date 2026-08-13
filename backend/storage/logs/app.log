@@ -2589,3 +2589,6 @@ Stack trace:
 [2026-08-13 19:54:34] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
 [2026-08-13 19:54:37] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
 [2026-08-13 19:54:40] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 19:55:09] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 19:55:12] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 19:55:16] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env

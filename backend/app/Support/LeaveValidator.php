@@ -9,9 +9,9 @@ class LeaveValidator
         $errors = [];
 
         $type = $payload['type'] ?? $payload['leave_type'] ?? $payload['request_type'] ?? null;
-        $allowedTypes = ['leave', 'annual', 'sick', 'unpaid', 'other', 'emergency'];
+        $allowedTypes = ['leave', 'annual', 'sick', 'unpaid', 'other', 'emergency', 'fr_leave', 'stu_leave'];
         if (!in_array($type, $allowedTypes, true)) {
-            $errors['type'][] = 'Type must be one of: leave, annual, sick, unpaid, other, emergency';
+            $errors['type'][] = 'Type must be one of: leave, annual, sick, unpaid, other, emergency, fr_leave, stu_leave';
         }
 
         $start = $payload['start_date'] ?? null;
@@ -79,9 +79,9 @@ class LeaveValidator
 
         $type = $payload['type'] ?? $payload['leave_type'] ?? $payload['request_type'] ?? null;
         if ($type !== null) {
-            $allowedTypes = ['leave', 'annual', 'sick', 'unpaid', 'other', 'emergency'];
+            $allowedTypes = ['leave', 'annual', 'sick', 'unpaid', 'other', 'emergency', 'fr_leave', 'stu_leave'];
             if (!in_array($type, $allowedTypes, true)) {
-                $errors['type'][] = 'Type must be one of: leave, annual, sick, unpaid, other, emergency';
+                $errors['type'][] = 'Type must be one of: leave, annual, sick, unpaid, other, emergency, fr_leave, stu_leave';
             }
         }
 

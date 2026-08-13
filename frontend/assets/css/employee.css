@@ -5,7 +5,6 @@
 .clock-time{ font-family:'Fraunces',serif; font-size:48px; font-weight:500; }
 .clock-sub{ color:var(--cream-dim); font-size:13.5px; margin-top:6px; }
 .clock-status{ display:flex; align-items:center; gap:12px; }
-.clock-actions{ display:flex; gap:14px; }
 
 /* Inline form feedback — no popup pattern for validation/success messages. */
 .form-error{ color:#e6b2a4; font-size:12.5px; margin-top:12px; }

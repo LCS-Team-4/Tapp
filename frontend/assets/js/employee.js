@@ -44,27 +44,6 @@ function wireDashboardDeepLinks() {
   });
 }
 
-// ---- Attendance: clock in/out ----
-// Submits a real POST to actions/clock.php and lets the redirect reload the
-// page — db.json is the source of truth now, so there's no local DOM state
-// to flip here anymore (was clockin.js's clockAction() before persistence).
-
-function postForm(action, fields) {
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = action;
-  form.style.display = 'none';
-  Object.entries(fields).forEach(([name, value]) => {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = name;
-    input.value = value;
-    form.appendChild(input);
-  });
-  document.body.appendChild(form);
-  form.submit();
-}
-
 const API_ROOT = '../../backend/public';
 
 async function submitLeaveRequest(payload) {
@@ -92,13 +71,35 @@ async function cancelLeaveRequest(leaveId) {
   });
 }
 
-function clockAction(type) {
-  postForm('actions/clock.php', { type });
-}
+// ---- Attendance: read-only live clock ----
+// Clock-in/out events come from RFID cards. The portal only displays the
+// current time and the latest persisted attendance times.
+function startLiveClock() {
+  const timeEl = document.getElementById('live-clock');
+  const dateEl = document.getElementById('live-clock-date');
+  if (!timeEl) return;
 
-function wireClockButtons() {
-  document.getElementById('btn-clockin')?.addEventListener('click', () => clockAction('in'));
-  document.getElementById('btn-clockout')?.addEventListener('click', () => clockAction('out'));
+  const timeFormatter = new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+  const dateFormatter = new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  function tick() {
+    const now = new Date();
+    timeEl.textContent = timeFormatter.format(now);
+    if (dateEl) dateEl.textContent = dateFormatter.format(now);
+  }
+
+  tick();
+  window.setInterval(tick, 1000);
 }
 
 // ---- Profile: Account form + password change + show/hide toggles ----
@@ -357,7 +358,7 @@ function wireHistory() {
 
 wireProfileSubtabs();
 wireDashboardDeepLinks();
-wireClockButtons();
+startLiveClock();
 wireAccountForm();
 wirePasswordForm();
 wirePasswordToggles();

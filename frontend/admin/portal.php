@@ -4,6 +4,27 @@ require_role('admin');
 require_once __DIR__ . '/data.php';
 $user = current_user();
 $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 'connected';
+$emailJsConfig = ['publicKey' => '', 'serviceId' => '', 'templateId' => ''];
+$emailEnvPath = __DIR__ . '/../../backend/.env';
+if (is_readable($emailEnvPath)) {
+  // .env files are not INI files: comments and unquoted values may contain
+  // characters such as parentheses, which make parse_ini_file() emit warnings.
+  $emailEnv = [];
+  foreach (file($emailEnvPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+    $line = trim($line);
+    if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+      continue;
+    }
+
+    [$key, $value] = explode('=', $line, 2);
+    $emailEnv[trim($key)] = trim($value);
+  }
+  $emailJsConfig = [
+    'publicKey' => (string) ($emailEnv['EMAILJS_PUBLIC_KEY'] ?? ''),
+    'serviceId' => (string) ($emailEnv['EMAILJS_SERVICE_ID'] ?? ''),
+    'templateId' => (string) ($emailEnv['EMAILJS_TEMPLATE_ID'] ?? ''),
+  ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -220,6 +241,17 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
               <div class="form-field" id="field-emp-position"><label>Position</label><input type="text" id="emp-position-input" placeholder="e.g. Backend Dev"></div>
               <div class="form-field"><label>Employee ID</label><input type="text" id="emp-id-input" placeholder="Auto-generated" disabled></div>
             </div>
+            <div class="form-row" style="margin-top:14px;">
+              <div class="form-field" id="field-emp-password">
+                <label>Generated Password</label>
+                <div class="password-field">
+                  <input type="text" id="emp-password-input" placeholder="Password" readonly>
+                  <button type="button" class="btn-icon" id="btn-regenerate-password" title="Regenerate password" aria-label="Regenerate password">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-4.95M20.49 15a9 9 0 01-14.85 4.95"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
             <p class="form-error" id="emp-form-error" style="display:none;">Please fill in all required fields above.</p>
             <div style="display:flex; gap:10px; margin-top:20px;">
               <button class="btn btn-pink" id="btn-register-employee" type="button">Register Employee</button>
@@ -412,6 +444,8 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
   </div>
 </div>
 
+<script>window.TAPP_EMAILJS_CONFIG = <?= json_encode($emailJsConfig, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="../assets/js/app.js?v=<?= filemtime(__DIR__ . '/../assets/js/app.js') ?>"></script>
 <script src="../assets/js/admin.js?v=<?= filemtime(__DIR__ . '/../assets/js/admin.js') ?>"></script>
 </body>

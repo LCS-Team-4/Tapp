@@ -231,10 +231,17 @@ class UsersController
 
         $name = trim((string) $request->input('name', ''));
         $email = trim((string) $request->input('email', ''));
+        $password = trim((string) $request->input('password', ''));
+        $department = trim((string) $request->input('department', '')) ?: null;
+        $position = trim((string) $request->input('position', '')) ?: null;
+        $sendWelcomeEmail = (bool) $request->input('send_welcome_email', false);
 
         if ($name === '' || $email === '') {
             return Response::error('Name and email are required', 400);
         }
+
+        // Use provided password or generate a temporary one
+        $temporaryPassword = $password ?: bin2hex(random_bytes(5));
 
         $nameParts = array_values(array_filter(array_map('trim', explode(' ', $name))));
         $firstName = $nameParts[0] ?? 'Unknown';
@@ -248,18 +255,16 @@ class UsersController
             $employeeId = sprintf('S-%03d', $counter++);
         } while ($this->users->employeeIdExists($employeeId));
 
-        $defaultPassword = bin2hex(random_bytes(5));
-
         try {
             $created = $this->users->create(
                 $employeeId,
                 $firstName,
                 $lastName,
                 $email,
-                password_hash($defaultPassword, PASSWORD_BCRYPT),
+                password_hash($temporaryPassword, PASSWORD_BCRYPT),
                 'staff',
-                trim((string) $request->input('department', '')) ?: null,
-                trim((string) $request->input('position', '')) ?: null,
+                $department,
+                $position,
             );
         } catch (\Throwable $e) {
             return Response::error('Unable to register employee: ' . $e->getMessage(), 500);
@@ -269,7 +274,15 @@ class UsersController
             'employee_id' => $created->employeeId,
             'name' => $created->name,
             'email' => $created->email,
-            'temporary_password' => $defaultPassword,
+            'department' => $department,
+            'position' => $position,
+            'data' => [
+                'employee_id' => $created->employeeId,
+                'name' => $created->name,
+                'email' => $created->email,
+                'department' => $department,
+                'position' => $position,
+            ],
         ], 201);
     }
 

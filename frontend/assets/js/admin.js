@@ -121,6 +121,69 @@ function downloadCsv(filename, data) {
   }
 }
 
+// ---- EmailJS configuration ----
+// EmailJS is loaded via CDN in portal.php: no package installation or SMTP
+// configuration is required. Its public key, service ID and template ID are
+// read from backend/.env and safely exposed here by portal.php.
+const EMAILJS_CONFIG = window.TAPP_EMAILJS_CONFIG || {};
+
+function emailJsIsConfigured() {
+  return Boolean(
+    window.emailjs
+    && EMAILJS_CONFIG.publicKey
+    && EMAILJS_CONFIG.serviceId
+    && EMAILJS_CONFIG.templateId
+  );
+}
+
+async function sendWelcomeEmailViaEmailJS(employee) {
+  if (!emailJsIsConfigured()) {
+    const reason = 'EmailJS is not configured. Add EMAILJS_PUBLIC_KEY, EMAILJS_SERVICE_ID and EMAILJS_TEMPLATE_ID to backend/.env.';
+    console.error(reason);
+    return { sent: false, reason };
+  }
+
+  try {
+    emailjs.init({ publicKey: EMAILJS_CONFIG.publicKey });
+    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, {
+      employee_name: employee.name,
+      employee_id: employee.employee_id,
+      employee_email: employee.email,
+      department: employee.department || '',
+      position: employee.position || '',
+      temporary_password: employee.password,
+    });
+    return { sent: true, reason: '' };
+  } catch (error) {
+    console.error('EmailJS failed to send the welcome email:', error);
+    return {
+      sent: false,
+      reason: error?.text || error?.message || 'EmailJS rejected the request. Check the browser console for more detail.',
+    };
+  }
+}
+
+// ---- Password generation helper ----
+function generateRandomPassword(length = 12) {
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const numbers = '0123456789';
+  const symbols = '!@#$%^&*';
+  const all = upper + lower + numbers + symbols;
+
+  let password = '';
+  password += upper[Math.floor(Math.random() * upper.length)];
+  password += lower[Math.floor(Math.random() * lower.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+  password += symbols[Math.floor(Math.random() * symbols.length)];
+
+  for (let i = password.length; i < length; i++) {
+    password += all[Math.floor(Math.random() * all.length)];
+  }
+
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
 // ---- Employees: directory, search/filter, register/edit/delete ----
 
 // employee_id format is S-### — take the highest existing number
@@ -175,6 +238,8 @@ function wireEmployees() {
   const deptEl = panel.querySelector('#emp-department-input');
   const positionEl = panel.querySelector('#emp-position-input');
   const idEl = panel.querySelector('#emp-id-input');
+  const passwordEl = panel.querySelector('#emp-password-input');
+  const regenerateBtn = panel.querySelector('#btn-regenerate-password');
   const errorEl = panel.querySelector('#emp-form-error');
   const submitBtn = panel.querySelector('#btn-register-employee');
 
@@ -214,6 +279,7 @@ function wireEmployees() {
     deptEl.value = '';
     positionEl.value = '';
     idEl.value = '';
+    passwordEl.value = generateRandomPassword();
     editingId = null;
     titleEl.textContent = 'Register Employee';
     submitBtn.textContent = 'Register Employee';
@@ -285,6 +351,12 @@ function wireEmployees() {
     resetForm();
     openModal();
   });
+
+  regenerateBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    passwordEl.value = generateRandomPassword();
+  });
+
   panel.querySelector('#btn-cancel-add-employee')?.addEventListener('click', () => {
     closeModal();
     resetForm();
@@ -339,6 +411,7 @@ function wireEmployees() {
       }
     } else {
       try {
+        const password = passwordEl.value || generateRandomPassword();
         const response = await fetch(`${API_ROOT}/api/admin/employees`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -348,6 +421,7 @@ function wireEmployees() {
             email,
             department,
             position,
+            password,
           }),
         });
 
@@ -368,6 +442,26 @@ function wireEmployees() {
         });
         wireRowActions(newRow);
         tbody.appendChild(newRow);
+
+        // Show success message
+        if (errorEl) {
+          errorEl.style.display = 'none';
+        }
+
+        const emailResult = await sendWelcomeEmailViaEmailJS({
+          name,
+          employee_id: created.employee_id || nextEmployeeId(tbody),
+          email,
+          department,
+          position,
+          password,
+        });
+
+        if (emailResult.sent) {
+          alert(`Employee registered successfully! Welcome email sent to ${email}.`);
+        } else {
+          alert(`Employee registered successfully, but the welcome email could not be sent. EmailJS says: ${emailResult.reason}`);
+        }
       } catch (error) {
         if (errorEl) {
           errorEl.textContent = error.message;

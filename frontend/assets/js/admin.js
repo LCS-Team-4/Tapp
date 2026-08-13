@@ -96,19 +96,29 @@ function downloadCsv(filename, data) {
       lines.push(title, ...rowsToCsvLines(rows));
     });
   } else {
+    console.error('Invalid data format for CSV export', data);
     return;
   }
-  if (!lines.length) return;
+  if (!lines.length) {
+    console.warn('No data to export');
+    return;
+  }
 
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  try {
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    console.log('CSV exported successfully:', filename);
+  } catch (error) {
+    console.error('Failed to download CSV:', error);
+    throw error;
+  }
 }
 
 // ---- Employees: directory, search/filter, register/edit/delete ----
@@ -488,14 +498,15 @@ function buildDailyRows() {
   if (!tbody) return [];
   return [...tbody.querySelectorAll('tr[data-name]')].map((row) => {
     const cells = row.querySelectorAll('td');
+    if (cells.length < 5) return null;
     return {
-      Employee: row.dataset.name,
+      Employee: row.dataset.name || '',
       'Clock In': attendanceCellText(cells, 1),
       'Clock Out': attendanceCellText(cells, 2),
       Hours: attendanceCellText(cells, 3),
       Status: attendanceCellText(cells, 4),
     };
-  });
+  }).filter(row => row !== null);
 }
 
 function buildEmployeeHoursRows() {
@@ -503,11 +514,12 @@ function buildEmployeeHoursRows() {
   if (!tbody) return [];
   return [...tbody.querySelectorAll('tr[data-name]')].map((row) => {
     const cells = row.querySelectorAll('td');
+    if (cells.length < 4) return null;
     return {
-      Employee: row.dataset.name,
+      Employee: row.dataset.name || '',
       'Hours Today': attendanceCellText(cells, 3),
     };
-  });
+  }).filter(row => row !== null);
 }
 
 function buildLeaveRows() {
@@ -515,14 +527,17 @@ function buildLeaveRows() {
     ...document.querySelectorAll('#leave-list .leave-req-card'),
     ...document.querySelectorAll('#leave-history-list .leave-req-card'),
   ];
-  return cards.map((card) => ({
-    Employee: card.dataset.employeeName,
-    'Leave Type': card.dataset.leaveTypeLabel,
-    Days: card.dataset.durationDays,
-    Reason: card.dataset.reason,
-    Status: card.dataset.status.charAt(0).toUpperCase() + card.dataset.status.slice(1),
-    'Decided On': card.dataset.decidedAt || '',
-  }));
+  return cards.map((card) => {
+    const status = (card.dataset.status || 'pending').charAt(0).toUpperCase() + (card.dataset.status || 'pending').slice(1);
+    return {
+      Employee: card.dataset.employeeName || '',
+      'Leave Type': card.dataset.leaveTypeLabel || '',
+      Days: card.dataset.durationDays || '',
+      Reason: card.dataset.reason || '',
+      Status: status,
+      'Decided On': card.dataset.decidedAt || '',
+    };
+  }).filter(row => row.Employee && row['Leave Type']);
 }
 
 // Maps a report tile's data-key to the section title used in exports and
@@ -541,45 +556,69 @@ const TILE_DATA = {
 // <head> per the export decision — no bundler here to resolve npm imports).
 function downloadPdf(filename, title, sections) {
   const rowsBySections = (sections || []).filter((s) => s.rows && s.rows.length);
-  if (!rowsBySections.length) return;
+  if (!rowsBySections.length) {
+    console.warn('No data to export for PDF');
+    return;
+  }
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  try {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      throw new Error('jsPDF library not loaded');
+    }
 
-  doc.setFontSize(14);
-  doc.text(title, 14, 16);
-  doc.setFontSize(10);
-  doc.text(`Exported ${today}`, 14, 22);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  let cursorY = 30;
-  rowsBySections.forEach(({ title: sectionTitle, rows }) => {
-    doc.setFontSize(12);
-    doc.text(sectionTitle, 14, cursorY);
+    doc.setFontSize(14);
+    doc.text(title, 14, 16);
+    doc.setFontSize(10);
+    doc.text(`Exported ${today}`, 14, 22);
 
-    const headers = Object.keys(rows[0]);
-    doc.autoTable({
-      startY: cursorY + 4,
-      head: [headers],
-      body: rows.map((row) => headers.map((h) => String(row[h] ?? ''))),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [210, 167, 167], textColor: [28, 14, 12] },
-      margin: { left: 14, right: 14 },
+    let cursorY = 30;
+    rowsBySections.forEach(({ title: sectionTitle, rows }) => {
+      if (cursorY > 250) {
+        doc.addPage();
+        cursorY = 15;
+      }
+
+      doc.setFontSize(12);
+      doc.text(sectionTitle, 14, cursorY);
+
+      const headers = Object.keys(rows[0]);
+      doc.autoTable({
+        startY: cursorY + 4,
+        head: [headers],
+        body: rows.map((row) => headers.map((h) => String(row[h] ?? ''))),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [210, 167, 167], textColor: [28, 14, 12] },
+        margin: { left: 14, right: 14 },
+      });
+
+      cursorY = doc.lastAutoTable.finalY + 14;
     });
 
-    cursorY = doc.lastAutoTable.finalY + 14;
-  });
-
-  doc.save(filename);
+    doc.save(filename);
+    console.log('PDF exported successfully:', filename);
+  } catch (error) {
+    console.error('Failed to download PDF:', error);
+    throw error;
+  }
 }
 
 function wireReports() {
   const panel = document.getElementById('a-reports');
-  if (!panel) return;
+  if (!panel) {
+    console.warn('Reports panel not found');
+    return;
+  }
   const tileEls = Array.from(panel.querySelectorAll('.report-tile[data-key]'));
   const csvBtn = panel.querySelector('#btn-export-reports-csv');
   const pdfBtn = panel.querySelector('#btn-export-reports-pdf');
-  if (!csvBtn || !pdfBtn) return;
+  if (!csvBtn || !pdfBtn) {
+    console.warn('Export buttons not found', { csvBtn: !!csvBtn, pdfBtn: !!pdfBtn });
+    return;
+  }
 
   function selectedCards() {
     return tileEls.filter((tile) => (tile.dataset.range || 'none') !== 'none');
@@ -632,16 +671,36 @@ function wireReports() {
   }
 
   csvBtn.addEventListener('click', () => {
-    const sections = selectedSections();
-    if (!sections.length) return;
-    downloadCsv(exportFilename('csv'), { sections });
+    try {
+      const sections = selectedSections();
+      if (!sections.length) {
+        alert('No data available for export. Please select a time range and ensure there is data to export.');
+        return;
+      }
+      downloadCsv(exportFilename('csv'), { sections });
+    } catch (error) {
+      console.error('CSV export error:', error);
+      alert('Failed to export CSV: ' + error.message);
+    }
   });
 
   pdfBtn.addEventListener('click', () => {
-    const sections = selectedSections();
-    if (!sections.length) return;
-    const title = sections.length === 1 ? sections[0].title : 'Report Export';
-    downloadPdf(exportFilename('pdf'), title, sections);
+    try {
+      const sections = selectedSections();
+      if (!sections.length) {
+        alert('No data available for export. Please select a time range and ensure there is data to export.');
+        return;
+      }
+      if (!window.jspdf || !window.jsPDF) {
+        alert('PDF library not loaded. Please refresh the page and try again.');
+        return;
+      }
+      const title = sections.length === 1 ? sections[0].title : 'Report Export';
+      downloadPdf(exportFilename('pdf'), title, sections);
+    } catch (error) {
+      console.error('PDF export error:', error);
+      alert('Failed to export PDF: ' + error.message);
+    }
   });
 
   updateExportButtons();
@@ -656,29 +715,34 @@ function wireSettings() {
     toggle.addEventListener('click', () => toggle.classList.toggle('on'));
   });
 
-  const nameEl = panel.querySelector('#settings-company-name');
-  const startEl = panel.querySelector('#settings-hours-start');
-  const endEl = panel.querySelector('#settings-hours-end');
-  const thresholdEl = panel.querySelector('#settings-late-threshold');
-  const saveBtn = panel.querySelector('#btn-save-settings');
+  const nameEl = panel.querySelector('#setting-company-name');
+  const startEl = panel.querySelector('#setting-working-start');
+  const endEl = panel.querySelector('#setting-working-end');
+  const thresholdEl = panel.querySelector('#setting-late-threshold');
+  const saveBtn = panel.querySelector('#btn-save-system-settings');
   const successEl = panel.querySelector('#settings-save-success');
-  if (!saveBtn) return;
+  const errorEl = panel.querySelector('#settings-save-error');
+  if (!saveBtn) {
+    console.warn('Settings save button not found');
+    return;
+  }
 
   function markDirty() {
-    successEl.style.display = 'none';
+    if (successEl) successEl.style.display = 'none';
+    if (errorEl) errorEl.style.display = 'none';
     saveBtn.disabled = false;
   }
   [nameEl, startEl, endEl, thresholdEl].forEach((el) => el?.addEventListener('input', markDirty));
 
   saveBtn.addEventListener('click', async () => {
-    const payload = {
-      company_name: nameEl.value.trim(),
-      working_hours_start: startEl.value,
-      working_hours_end: endEl.value,
-      late_threshold_minutes: Number(thresholdEl.value),
-    };
-
     try {
+      const payload = {
+        company_name: (nameEl?.value || '').trim(),
+        working_hours_start: startEl?.value || '08:00',
+        working_hours_end: endEl?.value || '17:00',
+        late_threshold_minutes: Number(thresholdEl?.value || 10),
+      };
+
       const response = await fetch(`${API_ROOT}/api/admin/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -692,10 +756,22 @@ function wireSettings() {
         throw new Error(message);
       }
 
-      successEl.style.display = 'block';
+      if (successEl) {
+        successEl.style.display = 'block';
+        setTimeout(() => {
+          successEl.style.display = 'none';
+        }, 3000);
+      }
       saveBtn.disabled = true;
+      console.log('Settings saved successfully');
     } catch (error) {
-      alert(error.message);
+      console.error('Settings save error:', error);
+      if (errorEl) {
+        errorEl.textContent = error.message;
+        errorEl.style.display = 'block';
+      } else {
+        alert(error.message);
+      }
     }
   });
 }

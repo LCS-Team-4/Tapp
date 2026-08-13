@@ -16,7 +16,8 @@ $data = api_data($body);
 // ---- 001_create_users ----
 $employees = $data['employees'] ?? [];
 
-$departmentOptions = ['All departments', 'Design', 'Engineering', 'Operations', 'Marketing'];
+$employeeDepartmentOptions = ['Engineering', 'Design', 'Operations', 'Marketing', 'Finance', 'Security'];
+$departmentOptions = array_merge(['All departments'], $employeeDepartmentOptions);
 
 // ---- 003_create_attendance ----
 $dashboardStats = $data['dashboard_stats'] ?? [
@@ -59,24 +60,18 @@ $systemSettings = $data['system_settings'] ?? [
     'late_threshold_minutes' => 10,
 ];
 
-$integrationSettings = [
-    'qr_clock_in_enabled'       => true,
-    'nfc_clock_in_enabled'      => true,
-    'google_sheets_sync_enabled' => false,
-];
-
-$terminalStatus = [
+$terminalStatus = array_merge([
     'device_name'   => 'tapp-pi-01',
-    'status'        => 'connected',
+    'status'        => 'disconnected',
     'network_label' => 'Local network',
-];
+], $data['terminal_status'] ?? []);
 
 $reportTiles = [
-    ['key' => 'daily',           'title' => 'Daily Attendance',    'subtitle' => "Today's snapshot",                     'icon' => '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/>', 'disabled' => false],
+    ['key' => 'daily',          'title' => 'Daily Attendance', 'subtitle' => 'View and export daily attendance records.', 'class' => 'report-green', 'icon' => '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M8 14h.01M12 14h.01M16 14h.01"/>'],
     ['key' => 'weekly',          'title' => 'Weekly Attendance',   'subtitle' => 'Needs historical data — coming soon',  'icon' => '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M8 14h.01M12 14h.01M16 14h.01"/>', 'disabled' => true],
     ['key' => 'monthly',         'title' => 'Monthly Attendance',  'subtitle' => 'Needs historical data — coming soon',  'icon' => '<path d="M4 20V10M11 20V4M18 20v-7"/>', 'disabled' => true],
-    ['key' => 'employee_hours',  'title' => 'Employee Hours',      'subtitle' => "Today's hours per person",             'icon' => '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>', 'disabled' => false],
-    ['key' => 'leave',           'title' => 'Leave Reports',       'subtitle' => 'All requests & balances',          'icon' => '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>', 'disabled' => false],
+    ['key' => 'leave',          'title' => 'Leave Reports',    'subtitle' => 'View and export employee leave records.',  'class' => 'report-rust',  'icon' => '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>'],
+    ['key' => 'employee_hours', 'title' => 'Employee Hours',   'subtitle' => 'View and export employee working hours.',  'class' => 'report-green', 'icon' => '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'],
     ['key' => 'custom',          'title' => 'Custom Range',        'subtitle' => 'Needs historical data — coming soon',  'icon' => '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>', 'disabled' => true],
 ];
 
@@ -85,33 +80,24 @@ $reportTiles = [
 // employee's employment state.
 function employee_status_badge(array $emp): array
 {
-    $attendanceBadge = [
+    $badges = [
         'onsite'  => ['class' => 'badge-onsite', 'label' => 'Onsite'],
-        'present' => ['class' => 'badge-present', 'label' => 'Present'],
+        'present' => ['class' => 'badge-offsite', 'label' => 'Offsite'],
+        'offsite' => ['class' => 'badge-offsite', 'label' => 'Offsite'],
+        'absent'  => ['class' => 'badge-absent', 'label' => 'Absent'],
     ];
-    $employmentBadge = [
-        'active'   => ['class' => 'badge-present', 'label' => 'Active'],
-        'inactive' => ['class' => 'badge-absent', 'label' => 'Inactive'],
-    ];
-    // Lateness is tracked separately from presence — a late arrival is still
-    // onsite, but the badge favors the more noteworthy "Late Today" flag.
-    if ($emp['today_is_late'] ?? false) {
-        return ['class' => 'badge-late', 'label' => 'Late Today'];
-    }
-    return $attendanceBadge[$emp['today_attendance_status']] ?? $employmentBadge[$emp['status']];
+    return $badges[$emp['today_attendance_status'] ?? ''] ?? ['class' => 'badge-offsite', 'label' => 'Offsite'];
 }
 
 function attendance_status_badge(string $status, bool $isLate = false): array
 {
-    if ($isLate) {
-        return ['class' => 'badge-late', 'label' => 'Late'];
-    }
     $badges = [
-        'present' => ['class' => 'badge-present', 'label' => 'Present'],
-        'onsite'  => ['class' => 'badge-onsite', 'label' => 'Currently Onsite'],
+        'present' => ['class' => 'badge-offsite', 'label' => 'Offsite'],
+        'offsite' => ['class' => 'badge-offsite', 'label' => 'Offsite'],
+        'onsite'  => ['class' => 'badge-onsite', 'label' => 'Onsite'],
         'absent'  => ['class' => 'badge-absent', 'label' => 'Absent'],
     ];
-    return $badges[$status] ?? ['class' => '', 'label' => ucfirst($status)];
+    return $badges[$status] ?? ['class' => 'badge-offsite', 'label' => 'Offsite'];
 }
 
 function feed_dot_color(string $eventType): string

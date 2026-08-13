@@ -57,7 +57,7 @@ $error = $_GET['error'] ?? '';
 
     <?php if ($error === '1'): ?>
       <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
-        Please enter both an ID/email and a password.
+        Please enter both an email and a password.
       </p>
     <?php elseif ($error === '2'): ?>
       <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
@@ -65,7 +65,7 @@ $error = $_GET['error'] ?? '';
       </p>
     <?php elseif ($error === '3'): ?>
       <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
-        Invalid login credentials. Please check your ID/email and password.
+        Invalid login credentials. Please check your email and password.
       </p>
     <?php endif; ?>
 
@@ -91,8 +91,8 @@ $error = $_GET['error'] ?? '';
       </div>
 
       <div class="field">
-        <label id="login-label-id">Employee ID or Email</label>
-        <input name="login_id" id="login-id" type="text" placeholder="e.g. jsmith@tapp.co">
+        <label id="login-label-id">Email</label>
+        <input name="login_id" id="login-id" type="text" placeholder="employee@gmail.com">
       </div>
       <div class="field">
         <label>Password</label>
@@ -100,8 +100,6 @@ $error = $_GET['error'] ?? '';
       </div>
       <button type="submit" class="btn-primary">Sign In</button>
     </form>
-    <p class="login-hint">Prototype demo — sign in as either role to preview the portal</p>
-    <p class="login-hint">New here? <a href="signup.php">Create an account</a></p>
   </div>
 </div>
 

@@ -4,6 +4,8 @@
 .badge::before{ content:''; width:6px; height:6px; border-radius:50%; }
 .badge-present{ background:rgba(108,113,79,0.25); color:#c3c9a4; }
 .badge-present::before{ background:#9aa574; }
+.badge-offsite{ background:rgba(161,130,97,0.25); color:#e3cba9; }
+.badge-offsite::before{ background:#d3ac77; }
 .badge-late{ background:rgba(161,130,97,0.25); color:#e3cba9; }
 .badge-late::before{ background:#d3ac77; }
 .badge-absent{ background:rgba(109,56,43,0.3); color:#e6b2a4; }

@@ -1,11 +1,30 @@
 /* Form fields/rows — ported from assets/style.css */
 
-.form-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.form-row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 @media (max-width:700px){ .form-row{ grid-template-columns:1fr; } }
-.form-field label{ display:block; font-size:12px; color:var(--tan-light); font-weight:700; margin-bottom:6px; letter-spacing:0.2px;}
+.form-field label{ display:block; font-size:12px; color:var(--tan-light); font-weight:700; margin-bottom:7px; letter-spacing:0.3px; text-transform:uppercase; }
 .form-field input, .form-field select, .form-field textarea{
-  width:100%; padding:11px 13px; background:rgba(0,0,0,0.25); border:1px solid rgba(210,167,167,0.2);
-  border-radius:9px; color:var(--cream); font-size:13.5px; outline:none;
+  width:100%; padding:12px 14px; background:rgba(0,0,0,0.25); border:1px solid rgba(210,167,167,0.2);
+  border-radius:10px; color:var(--cream); font-size:13.5px; outline:none; transition:border-color 0.2s, background-color 0.2s;
 }
-.form-field textarea{ resize:vertical; min-height:70px; }
-.form-field input:focus, .form-field select:focus, .form-field textarea:focus{ border-color:var(--pink); }
+.form-field input:hover, .form-field select:hover, .form-field textarea:hover{ border-color:rgba(210,167,167,0.35); }
+.form-field textarea{ resize:vertical; min-height:80px; }
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus{ border-color:var(--pink); background:rgba(0,0,0,0.35); }
+.form-field select{
+  appearance:none;
+  color-scheme:dark;
+  background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="%23cdb9ab" d="M2 4l4 4 4-4z"/></svg>');
+  background-position:calc(100% - 13px) 50%;
+  background-size:12px 12px;
+  background-repeat:no-repeat;
+  padding-right:38px;
+  cursor:pointer;
+  transition:border-color 0.2s, background-color 0.2s;
+  border-radius:10px;
+}
+.form-field select:hover{ border-color:rgba(210,167,167,0.32); background-color:rgba(210,167,167,0.08); }
+.form-field select:focus{ background-color:rgba(210,167,167,0.1); }
+.form-field select:active{ background-color:rgba(210,167,167,0.12); }
+.form-field select option{ background:var(--maroon); color:var(--cream); padding:8px; }
+.form-field select option:checked{ background:var(--pink); color:var(--ink); }
+.form-field select option:disabled{ color:var(--cream-dim); background:var(--maroon-deep); }

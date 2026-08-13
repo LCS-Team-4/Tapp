@@ -130,10 +130,8 @@ function initialsOf(name) {
   return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
 }
 
-// New registrations always land with employment status "active" and no
-// today_attendance_status yet — same fallback employees.js's status badge
-// lookup resolves to for a fresh hire, so it's hardcoded here rather than
-// re-implementing the ATTENDANCE_BADGE/EMPLOYMENT_BADGE lookup in JS.
+const ALLOWED_DEPARTMENTS = ['Engineering', 'Design', 'Operations', 'Marketing', 'Finance', 'Security'];
+
 function buildEmployeeRow(emp) {
   const tr = document.createElement('tr');
   tr.dataset.id = emp.employee_id;
@@ -143,7 +141,7 @@ function buildEmployeeRow(emp) {
     <td>${escapeHtml(emp.employee_id)}</td>
     <td>${escapeHtml(emp.department)}</td>
     <td>${escapeHtml(emp.position)}</td>
-    <td><span class="badge badge-present">Active</span></td>
+    <td><span class="badge badge-offsite">Offsite</span></td>
     <td>
       <button class="btn-icon" title="Edit" data-action="edit" data-id="${escapeHtml(emp.employee_id)}" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${EDIT_ICON}</svg></button>
       <button class="btn-icon" title="Delete" data-action="delete" data-id="${escapeHtml(emp.employee_id)}" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${DELETE_ICON}</svg></button>
@@ -208,7 +206,7 @@ function wireEmployees() {
     idEl.value = '';
     editingId = null;
     titleEl.textContent = 'Register Employee';
-    submitBtn.textContent = 'Register & Generate QR';
+    submitBtn.textContent = 'Register Employee';
     clearFieldErrors();
   }
 
@@ -234,7 +232,8 @@ function wireEmployees() {
       editingId = row.dataset.id;
       nameEl.value = row.querySelector('.emp-name')?.textContent ?? '';
       emailEl.value = row.dataset.email ?? '';
-      deptEl.value = row.children[2].textContent;
+      const department = row.children[2].textContent.trim();
+      deptEl.value = ALLOWED_DEPARTMENTS.includes(department) ? department : '';
       positionEl.value = row.children[3].textContent;
       idEl.value = row.dataset.id;
       titleEl.textContent = 'Edit Employee';
@@ -374,24 +373,14 @@ function wireEmployees() {
   });
 }
 
-// ---- Attendance monitoring: search + scoped CSV export ----
-// The status select/Filter button from the design-reference markup were
-// dropped, same as the current build's attendance.js — attendanceMonitoring
-// has no field they meaningfully filtered beyond what search now covers.
-// Sort stays inert (matches the current build's deliberate no-op button).
+// ---- Attendance monitoring: search ----
 function wireAttendance() {
   const panel = document.getElementById('a-attendance');
   if (!panel) return;
   const searchEl = panel.querySelector('#attendance-search');
   const tbody = panel.querySelector('#attendance-tbody');
-  const exportBtn = panel.querySelector('#btn-export-attendance-csv');
   if (!tbody) return;
 
-  // Filters by toggling row visibility in place (no in-memory
-  // attendanceMonitoring array to re-map from, since data.php only rendered
-  // the table once server-side) — CSV export below reads whatever's
-  // currently visible, which keeps "scoped to filtered rows" true without
-  // needing a parallel JS data source.
   function applyFilter() {
     const query = searchEl.value.trim().toLowerCase();
     const rows = tbody.querySelectorAll('tr[data-name]');
@@ -419,26 +408,6 @@ function wireAttendance() {
   }
 
   searchEl?.addEventListener('input', applyFilter);
-
-  exportBtn?.addEventListener('click', () => {
-    const rows = [...tbody.querySelectorAll('tr[data-name]')]
-      .filter((row) => row.style.display !== 'none')
-      .map((row) => {
-        const cells = row.querySelectorAll('td');
-        const cellText = (i) => {
-          const text = cells[i].textContent.trim();
-          return text === '—' ? '' : text;
-        };
-        return {
-          Employee: row.dataset.name,
-          'Clock In': cellText(1),
-          'Clock Out': cellText(2),
-          Hours: cellText(3),
-          Status: cellText(4),
-        };
-      });
-    downloadCsv('attendance.csv', rows);
-  });
 }
 
 // ---- Shared date helper (leave decisions, report filenames) ----
@@ -607,45 +576,59 @@ function downloadPdf(filename, title, sections) {
 function wireReports() {
   const panel = document.getElementById('a-reports');
   if (!panel) return;
-  const tileEls = Array.from(panel.querySelectorAll('.report-tile:not(.disabled)'));
+  const tileEls = Array.from(panel.querySelectorAll('.report-tile[data-key]'));
   const csvBtn = panel.querySelector('#btn-export-reports-csv');
   const pdfBtn = panel.querySelector('#btn-export-reports-pdf');
   if (!csvBtn || !pdfBtn) return;
-  const selected = new Set();
+
+  function selectedCards() {
+    return tileEls.filter((tile) => (tile.dataset.range || 'none') !== 'none');
+  }
 
   function updateExportButtons() {
-    const hasSelection = selected.size > 0;
+    const hasSelection = selectedCards().length > 0;
     csvBtn.disabled = !hasSelection;
     pdfBtn.disabled = !hasSelection;
   }
 
   tileEls.forEach((tile) => {
-    tile.addEventListener('click', () => {
-      const key = tile.dataset.key;
-      if (selected.has(key)) {
-        selected.delete(key);
-        tile.classList.remove('selected');
-      } else {
-        selected.add(key);
-        tile.classList.add('selected');
-      }
-      updateExportButtons();
+    tile.querySelectorAll('[data-report-range]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        tile.dataset.range = btn.dataset.reportRange;
+        tile.querySelectorAll('[data-report-range]').forEach((rangeBtn) => {
+          rangeBtn.classList.toggle('active', rangeBtn === btn);
+        });
+        updateExportButtons();
+      });
     });
   });
 
+  function rangeLabel(range) {
+    return range.charAt(0).toUpperCase() + range.slice(1);
+  }
+
   function selectedSections() {
-    return Array.from(selected)
-      .map((key) => TILE_DATA[key])
-      .filter(Boolean)
-      .map(({ title, build }) => ({ title, rows: build() }))
+    return selectedCards()
+      .map((tile) => {
+        const data = TILE_DATA[tile.dataset.key];
+        if (!data) return null;
+        const range = tile.dataset.range || 'none';
+        return {
+          title: `${data.title} - ${rangeLabel(range)}`,
+          rows: data.build(),
+        };
+      })
       .filter((section) => section.rows.length);
   }
 
   function exportFilename(ext) {
     const today = todayIso();
-    return selected.size === 1
-      ? `report-${Array.from(selected)[0]}-${today}.${ext}`
-      : `report-export-${today}.${ext}`;
+    const cards = selectedCards();
+    if (cards.length === 1) {
+      const card = cards[0];
+      return `report-${card.dataset.key}-${card.dataset.range}-${today}.${ext}`;
+    }
+    return `report-export-${today}.${ext}`;
   }
 
   csvBtn.addEventListener('click', () => {
@@ -660,6 +643,8 @@ function wireReports() {
     const title = sections.length === 1 ? sections[0].title : 'Report Export';
     downloadPdf(exportFilename('pdf'), title, sections);
   });
+
+  updateExportButtons();
 }
 
 // ---- Settings: toggle switches + dirty-state save ----

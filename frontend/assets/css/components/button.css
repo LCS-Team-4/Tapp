@@ -1,14 +1,13 @@
 /* Buttons — ported from assets/style.css */
 
-.btn{ padding:10px 18px; border-radius:9px; font-size:13px; font-weight:700; letter-spacing:0.2px; transition: all 0.15s; }
+.btn{ padding:11px 20px; border-radius:9px; font-size:13px; font-weight:700; letter-spacing:0.3px; transition: all 0.2s ease; cursor:pointer; }
 .btn-pink{ background:var(--pink); color:var(--ink); }
-.btn-pink:hover{ background:var(--cream); }
+.btn-pink:hover{ background:var(--cream); transform:translateY(-1px); }
 .btn-outline{ background:transparent; border:1px solid rgba(210,167,167,0.35)!important; color:var(--cream); }
-.btn-outline:hover{ border-color:var(--pink)!important; color:var(--pink); }
+.btn-outline:hover{ border-color:var(--pink)!important; color:var(--pink); background:rgba(210,167,167,0.05); }
 .btn-olive{ background:var(--olive); color:var(--cream); }
-.btn-olive:hover{ background:var(--olive-light); }
+.btn-olive:hover{ background:var(--olive-light); transform:translateY(-1px); }
 .btn-rust{ background:transparent; border:1px solid var(--rust)!important; color:var(--pink-deep); }
 .btn-rust:hover{ background:rgba(109,56,43,0.25); }
-.btn-sm{ padding:7px 13px; font-size:12px; }
-.btn-icon{ width:32px; height:32px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:rgba(210,167,167,0.1); color:var(--cream-dim); }
-.btn-icon:hover{ background:rgba(210,167,167,0.22); color:var(--pink); }
+.btn-sm{ padding:8px 14px; font-size:12.5px; }
+.btn-icon{ width:36px; height:36px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:rgba(210,167,167,0.1); color:var(--cream-dim); transition:all 0.2s ease; }\n.btn-icon:hover{ background:rgba(210,167,167,0.22); color:var(--pink); }

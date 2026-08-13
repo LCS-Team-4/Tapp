@@ -16,8 +16,8 @@ function setLoginRole(role) {
 
   employeeTab.classList.toggle('active', role === 'employee');
   adminTab.classList.toggle('active', role === 'admin');
-  if (labelEl) labelEl.textContent = role === 'employee' ? 'Employee ID or Email' : 'Admin Email';
-  if (idEl) idEl.placeholder = role === 'employee' ? 'e.g. jsmith@tapp.co' : 'e.g. admin@tapp.co';
+  if (labelEl) labelEl.textContent = role === 'employee' ? 'Email' : 'Admin Email';
+  if (idEl) idEl.placeholder = role === 'employee' ? 'employee@gmail.com' : 'admin@gmail.com';
   if (roleInput) roleInput.value = role;
 }
 

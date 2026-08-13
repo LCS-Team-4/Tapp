@@ -3,6 +3,7 @@ require_once __DIR__ . '/../auth.php';
 require_role('admin');
 require_once __DIR__ . '/data.php';
 $user = current_user();
+$terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 'connected';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -204,8 +205,16 @@ $user = current_user();
             <h3 id="employee-modal-title">Register Employee</h3>
             <div class="form-field" id="field-emp-name" style="margin-bottom:14px;"><label>Full Name</label><input type="text" id="emp-name-input" placeholder="e.g. Alicia Moreno"></div>
             <div class="form-row">
-              <div class="form-field" id="field-emp-email"><label>Email</label><input type="text" id="emp-email-input" placeholder="name@tapp.co"></div>
-              <div class="form-field" id="field-emp-department"><label>Department</label><input type="text" id="emp-department-input" placeholder="e.g. Engineering"></div>
+              <div class="form-field" id="field-emp-email"><label>Email</label><input type="email" id="emp-email-input" placeholder="employee@gmail.com"></div>
+              <div class="form-field" id="field-emp-department">
+                <label>Department</label>
+                <select class="select-input" id="emp-department-input">
+                  <option value="" disabled selected>Select department</option>
+                  <?php foreach ($employeeDepartmentOptions as $dept): ?>
+                  <option value="<?= htmlspecialchars($dept) ?>"><?= htmlspecialchars($dept) ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
             </div>
             <div class="form-row" style="margin-top:14px;">
               <div class="form-field" id="field-emp-position"><label>Position</label><input type="text" id="emp-position-input" placeholder="e.g. Backend Dev"></div>
@@ -213,10 +222,7 @@ $user = current_user();
             </div>
             <p class="form-error" id="emp-form-error" style="display:none;">Please fill in all required fields above.</p>
             <div style="display:flex; gap:10px; margin-top:20px;">
-              <!-- QR generation is intentionally unimplemented: it depends on
-                   TokenController and the still-open NFC/QR hardware decision,
-                   so submit only registers the employee. -->
-              <button class="btn btn-pink" id="btn-register-employee" type="button">Register &amp; Generate QR</button>
+              <button class="btn btn-pink" id="btn-register-employee" type="button">Register Employee</button>
               <button class="btn btn-outline" id="btn-cancel-add-employee" type="button">Cancel</button>
             </div>
           </div>
@@ -228,8 +234,6 @@ $user = current_user();
         <div class="card">
           <div class="toolbar">
             <input class="search-input" id="attendance-search" placeholder="Search by employee…">
-            <button class="btn btn-outline btn-sm" type="button">Sort</button>
-            <button class="btn btn-olive btn-sm" id="btn-export-attendance-csv" type="button">Export CSV</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -316,15 +320,32 @@ $user = current_user();
           <div class="section-head"><h3>Generate Reports</h3></div>
           <div class="report-grid">
             <?php foreach ($reportTiles as $tile): ?>
-            <button class="report-tile<?= $tile['disabled'] ? ' disabled' : '' ?>" data-key="<?= htmlspecialchars($tile['key']) ?>" type="button"<?= $tile['disabled'] ? ' disabled' : '' ?>>
-              <div class="rt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D2A7A7" stroke-width="1.8"><?= $tile['icon'] ?></svg></div>
-              <div class="rt-title"><?= htmlspecialchars($tile['title']) ?></div>
-              <div class="rt-sub"><?= $tile['subtitle'] ?></div>
-            </button>
+            <?php if (!in_array($tile['key'], ['daily', 'leave', 'employee_hours'], true)) continue; ?>
+            <div class="report-tile <?= htmlspecialchars($tile['class'] ?? 'report-green') ?>" data-key="<?= htmlspecialchars($tile['key']) ?>" data-range="none">
+              <div class="rt-main">
+                <div class="rt-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><?= $tile['icon'] ?></svg></div>
+                <div>
+                  <div class="rt-title"><?= htmlspecialchars($tile['title']) ?></div>
+                  <div class="rt-sub"><?= htmlspecialchars($tile['subtitle']) ?></div>
+                </div>
+              </div>
+              <div class="rt-divider"></div>
+              <div class="rt-range-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+                Time Range
+              </div>
+              <div class="rt-range" role="group" aria-label="<?= htmlspecialchars($tile['title']) ?> time range">
+                <button type="button" data-report-range="daily">Daily</button>
+                <button type="button" data-report-range="weekly">Weekly</button>
+                <button type="button" data-report-range="monthly">Monthly</button>
+                <button type="button" data-report-range="none" class="active">None</button>
+              </div>
+            </div>
             <?php endforeach; ?>
           </div>
           <div class="divider"></div>
-          <div style="display:flex; gap:12px;">
+          <p class="muted report-hint" id="report-range-hint">Select a time range above to generate your report. If no range is selected, the report will not be filtered.</p>
+          <div class="report-actions">
             <button class="btn btn-olive" id="btn-export-reports-csv" type="button" disabled>Export as CSV</button>
             <button class="btn btn-outline" id="btn-export-reports-pdf" type="button" disabled>Export as PDF</button>
           </div>
@@ -333,25 +354,31 @@ $user = current_user();
 
       <!-- Settings -->
       <div class="tab-panel" id="a-settings">
-        <div class="grid grid-2">
-          <div class="card">
-            <div class="section-head"><h3>System Settings</h3></div>
-            <div class="form-field" style="margin-bottom:14px;"><label>Company Name</label><input type="text" id="settings-company-name" value="<?= htmlspecialchars($systemSettings['company_name']) ?>"></div>
-            <div class="form-row">
-              <div class="form-field"><label>Working Hours Start</label><input type="time" id="settings-hours-start" value="<?= htmlspecialchars($systemSettings['working_hours_start']) ?>"></div>
-              <div class="form-field"><label>Working Hours End</label><input type="time" id="settings-hours-end" value="<?= htmlspecialchars($systemSettings['working_hours_end']) ?>"></div>
+        <div class="card">
+          <div class="section-head"><h3>Integrations</h3></div>
+          <div class="settings-row">
+            <div>
+              <div class="sr-label">Raspberry Pi Device</div>
+              <div class="sr-sub"><?= htmlspecialchars($terminalStatus['device_name']) ?> · <?= htmlspecialchars($terminalStatus['network_label']) ?></div>
             </div>
-            <div class="form-field" style="margin-top:14px;"><label>Late Threshold (minutes)</label><input type="number" id="settings-late-threshold" value="<?= (int) $systemSettings['late_threshold_minutes'] ?>"></div>
-            <p class="form-success" id="settings-save-success" style="display:none;">Settings updated.</p>
-            <button class="btn btn-pink" id="btn-save-settings" style="margin-top:16px;" type="button" disabled>Save Settings</button>
+            <span class="badge <?= $terminalConnected ? 'badge-present' : 'badge-absent' ?>"><?= $terminalConnected ? 'Connected' : 'Disconnected' ?></span>
           </div>
-          <div class="card">
-            <div class="section-head"><h3>Integrations</h3></div>
-            <div class="settings-row"><div><div class="sr-label">QR Code Clock-In</div><div class="sr-sub">Employees scan to clock in/out</div></div><div class="toggle<?= $integrationSettings['qr_clock_in_enabled'] ? ' on' : '' ?>" data-toggle></div></div>
-            <div class="settings-row"><div><div class="sr-label">NFC Clock-In</div><div class="sr-sub">Employees tap a card or phone to clock in/out</div></div><div class="toggle<?= $integrationSettings['nfc_clock_in_enabled'] ? ' on' : '' ?>" data-toggle></div></div>
-            <div class="settings-row"><div><div class="sr-label">Google Sheets Sync</div><div class="sr-sub">Mirror attendance to a live sheet</div></div><div class="toggle<?= $integrationSettings['google_sheets_sync_enabled'] ? ' on' : '' ?>" data-toggle></div></div>
-            <div class="settings-row"><div><div class="sr-label">Raspberry Pi Device</div><div class="sr-sub"><?= htmlspecialchars($terminalStatus['device_name']) ?> · <?= htmlspecialchars($terminalStatus['network_label']) ?></div></div><span class="badge badge-present"><?= $terminalStatus['status'] === 'connected' ? 'Connected' : 'Disconnected' ?></span></div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="section-head"><h3>System Settings</h3></div>
+          <div class="form-row">
+            <div class="form-field"><label>Company Name</label><input type="text" id="setting-company-name" value="<?= htmlspecialchars($systemSettings['company_name'] ?? '') ?>"></div>
           </div>
+          <div class="form-row" style="margin-top:14px;">
+            <div class="form-field"><label>Working Hours Start</label><input type="time" id="setting-working-start" value="<?= htmlspecialchars($systemSettings['working_hours_start'] ?? '08:00') ?>"></div>
+            <div class="form-field"><label>Working Hours End</label><input type="time" id="setting-working-end" value="<?= htmlspecialchars($systemSettings['working_hours_end'] ?? '17:00') ?>"></div>
+          </div>
+          <div class="form-row" style="margin-top:14px;">
+            <div class="form-field"><label>Late Threshold (minutes)</label><input type="number" id="setting-late-threshold" min="1" max="60" value="<?= (int) ($systemSettings['late_threshold_minutes'] ?? 10) ?>"></div>
+          </div>
+          <p class="form-error" id="settings-save-error" style="display:none; margin-top:14px;"></p>
+          <p class="form-success" id="settings-save-success" style="display:none; margin-top:14px;">Settings saved successfully.</p>
+          <button class="btn btn-pink" style="margin-top:16px;" id="btn-save-system-settings" type="button">Save Settings</button>
         </div>
         <div class="card" style="margin-top:14px;">
           <div class="section-head"><h3>Manage Admins</h3></div>

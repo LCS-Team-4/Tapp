@@ -11,13 +11,26 @@ tr:hover td{ background:rgba(210,167,167,0.04); }
 .emp-name{ font-weight:700; font-size:13px; }
 .emp-dept{ font-size:11px; color:var(--cream-dim); }
 
-.toolbar{ display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+.toolbar{ display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
 .search-input{
-  flex:1; min-width:180px; padding:10px 14px; background:rgba(0,0,0,0.25);
-  border:1px solid rgba(210,167,167,0.2); border-radius:9px; color:var(--cream); font-size:13px; outline:none;
+  flex:1; min-width:180px; padding:11px 14px; background:rgba(0,0,0,0.25);
+  border:1px solid rgba(210,167,167,0.2); border-radius:9px; color:var(--cream); font-size:13.5px; outline:none; transition:border-color 0.2s, background-color 0.2s;
 }
-.search-input:focus{ border-color:var(--pink); }
+.search-input:hover{ border-color:rgba(210,167,167,0.35); }
+.search-input:focus{ border-color:var(--pink); background:rgba(0,0,0,0.35); }
 .select-input{
-  padding:10px 14px; background:rgba(0,0,0,0.25); border:1px solid rgba(210,167,167,0.2);
-  border-radius:9px; color:var(--cream); font-size:13px; outline:none;
+  padding:11px 14px; background:rgba(0,0,0,0.25); border:1px solid rgba(210,167,167,0.2);
+  border-radius:10px; color:var(--cream); font-size:13.5px; outline:none; transition:border-color 0.2s, background-color 0.2s;
+  appearance:none;
+  color-scheme:dark;
+  background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="%23cdb9ab" d="M2 4l4 4 4-4z"/></svg>');
+  background-position:calc(100% - 13px) 50%;
+  background-size:12px 12px;
+  background-repeat:no-repeat;
+  padding-right:38px;
+  cursor:pointer;
 }
+.select-input:hover{ border-color:rgba(210,167,167,0.32); background-color:rgba(210,167,167,0.08); }
+.select-input:focus{ border-color:var(--pink); background-color:rgba(210,167,167,0.1); }
+.select-input option{ background:var(--maroon); color:var(--cream); padding:8px; }
+.select-input option:checked{ background:var(--pink); color:var(--ink); }

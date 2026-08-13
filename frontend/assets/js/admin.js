@@ -123,7 +123,7 @@ function downloadCsv(filename, data) {
 
 // ---- Employees: directory, search/filter, register/edit/delete ----
 
-// employee_id format is EMP-#### — take the highest existing number
+// employee_id format is S-### — take the highest existing number
 // (across all rows, not just visible ones, so filtering doesn't skip IDs)
 // and increment it, rather than anything random.
 function nextEmployeeId(tbody) {
@@ -132,7 +132,7 @@ function nextEmployeeId(tbody) {
     const n = Number((row.dataset.id || '').split('-')[1]);
     if (Number.isFinite(n) && n > max) max = n;
   });
-  return `EMP-${String(max + 1).padStart(4, '0')}`;
+  return `S-${String(max + 1).padStart(3, '0')}`;
 }
 
 function initialsOf(name) {
@@ -1136,7 +1136,6 @@ function wireAdminInvite() {
   if (!inviteBtn || !modal) return;
 
   const nameEl = modal.querySelector('#invite-admin-name');
-  const idEl = modal.querySelector('#invite-admin-employee-id');
   const emailEl = modal.querySelector('#invite-admin-email');
   const passEl = modal.querySelector('#invite-admin-password');
   const passConfirmEl = modal.querySelector('#invite-admin-password-confirm');
@@ -1149,18 +1148,16 @@ function wireAdminInvite() {
 
   function validate() {
     const name = nameEl.value.trim();
-    const empId = idEl.value.trim();
     const email = emailEl.value.trim();
     const pass = passEl.value;
     const passc = passConfirmEl.value;
-    const ok = name && empId && email && pass && pass === passc;
+    const ok = name && email && pass && pass === passc;
     errorEl.style.display = ok ? 'none' : 'block';
     return ok;
   }
 
   inviteBtn.addEventListener('click', () => {
     nameEl.value = '';
-    idEl.value = '';
     emailEl.value = '';
     passEl.value = '';
     passConfirmEl.value = '';
@@ -1170,14 +1167,161 @@ function wireAdminInvite() {
 
   cancelBtn.addEventListener('click', () => close());
 
-  createBtn.addEventListener('click', () => {
+  createBtn.addEventListener('click', async () => {
     if (!validate()) return;
-    postForm('admin/actions/create_admin.php', {
-      name: nameEl.value.trim(),
-      employee_id: idEl.value.trim(),
-      email: emailEl.value.trim(),
-      password: passEl.value,
-      password_confirm: passConfirmEl.value,
+
+    createBtn.disabled = true;
+    try {
+      const response = await fetch(`${API_ROOT}/api/admin/admins/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: nameEl.value.trim(),
+          email: emailEl.value.trim(),
+          password: passEl.value,
+          password_confirm: passConfirmEl.value,
+        }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = body.error?.message || 'Unable to create admin account';
+        throw new Error(message);
+      }
+
+      close();
+      // Refresh the admin list if it's rendered.
+      loadAdmins();
+      window.alert('Admin account created successfully.');
+    } catch (error) {
+      errorEl.textContent = error.message;
+      errorEl.style.display = 'block';
+    } finally {
+      createBtn.disabled = false;
+    }
+  });
+}
+
+// ---- Manage Admins: list, promote, demote ----
+// Fetches the current admin list and renders it in the Manage Admins card.
+// Also wires the "Promote to Admin" action for staff users and the
+// "Demote" action for existing admins.
+async function loadAdmins() {
+  const listEl = document.getElementById('admin-list');
+  if (!listEl) return;
+
+  try {
+    const response = await fetch(`${API_ROOT}/api/admin/admins`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error?.message || 'Unable to load admins');
+    }
+    const body = await response.json();
+    const admins = body.data || [];
+
+    if (!admins.length) {
+      listEl.innerHTML = '<p class="muted" style="padding:8px 0;">No admin accounts found.</p>';
+      return;
+    }
+
+    listEl.innerHTML = admins.map((admin) => `
+      <div class="admin-row" data-employee-id="${escapeHtml(admin.employee_id)}">
+        <div class="emp-cell">
+          <div class="avatar">${escapeHtml(admin.initials)}</div>
+          <div>
+            <div class="emp-name">${escapeHtml(admin.name)}</div>
+            <div class="muted" style="font-size:12px;">${escapeHtml(admin.email)}</div>
+          </div>
+        </div>
+        <div class="admin-actions">
+          <span class="badge badge-present">Admin</span>
+          <button class="btn btn-outline btn-sm" data-action="demote" data-id="${escapeHtml(admin.employee_id)}" type="button">Demote</button>
+        </div>
+      </div>
+    `).join('');
+
+    // Wire demote buttons.
+    listEl.querySelectorAll('[data-action="demote"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const name = btn.closest('.admin-row')?.querySelector('.emp-name')?.textContent || id;
+        confirmDialog(`Demote ${name} (${id}) back to staff? They will lose admin access.`, async () => {
+          try {
+            const response = await fetch(
+              `${API_ROOT}/api/admin/admins/demote/${encodeURIComponent(id)}`,
+              {
+                method: 'PUT',
+                credentials: 'include',
+              }
+            );
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              const message = body.error?.message || 'Unable to demote admin';
+              throw new Error(message);
+            }
+            await loadAdmins();
+          } catch (error) {
+            window.alert(error.message);
+          }
+        });
+      });
+    });
+  } catch (error) {
+    listEl.innerHTML = `<p class="muted" style="padding:8px 0;">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+// ---- Promote staff to admin ----
+// Adds a "Promote to Admin" action to the employee table rows so an admin
+// can convert a staff member or newly registered user into an admin.
+function wirePromoteToAdmin() {
+  const tbody = document.getElementById('employee-tbody');
+  if (!tbody) return;
+
+  // Add a promote button to each employee row's action cell.
+  tbody.querySelectorAll('tr[data-id]').forEach((row) => {
+    const actionsCell = row.querySelector('td:last-child');
+    if (!actionsCell) return;
+    if (actionsCell.querySelector('[data-action="promote"]')) return;
+
+    const promoteBtn = document.createElement('button');
+    promoteBtn.className = 'btn-icon';
+    promoteBtn.title = 'Promote to Admin';
+    promoteBtn.dataset.action = 'promote';
+    promoteBtn.dataset.id = row.dataset.id;
+    promoteBtn.type = 'button';
+    promoteBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/><path d="M12 8l1.5 3 3 1.5-3 1.5L12 17l-1.5-3-3-1.5 3-1.5L12 8z"/></svg>';
+    actionsCell.appendChild(promoteBtn);
+
+    promoteBtn.addEventListener('click', () => {
+      const name = row.querySelector('.emp-name')?.textContent || '';
+      const id = row.dataset.id;
+      confirmDialog(`Promote ${name} (${id}) to admin? They will gain access to the admin portal.`, async () => {
+        try {
+          const response = await fetch(
+            `${API_ROOT}/api/admin/admins/promote/${encodeURIComponent(id)}`,
+            {
+              method: 'PUT',
+              credentials: 'include',
+            }
+          );
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            const message = body.error?.message || 'Unable to promote user to admin';
+            throw new Error(message);
+          }
+          // Remove the row from the employee table since they're now an admin.
+          row.remove();
+          // Refresh the admin list.
+          loadAdmins();
+          window.alert(`${name} has been promoted to admin.`);
+        } catch (error) {
+          window.alert(error.message);
+        }
+      });
     });
   });
 }
@@ -1186,6 +1330,7 @@ wireEmployees();
 wireAttendance();
 wireLeave();
 startLeavePolling();
+wirePromoteToAdmin();
 
 // Ensure PDF libraries are loaded before wiring reports
 if (document.readyState === 'loading') {
@@ -1193,9 +1338,11 @@ if (document.readyState === 'loading') {
     wireReports();
     wireSettings();
     wireAdminInvite();
+    loadAdmins();
   });
 } else {
   wireReports();
   wireSettings();
   wireAdminInvite();
+  loadAdmins();
 }

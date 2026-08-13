@@ -15,13 +15,10 @@
 -- to hold on the actual PHP/MariaDB version in use, regenerate with
 -- `php -r "echo password_hash('password123', PASSWORD_BCRYPT);"` instead.
 --
--- employee_id format (ADM-xxx / EMP-xxx) is an assumption, not a documented
--- decision — nothing in schema-notes.md or the migrations pins this down
--- beyond "varchar(20), unique." The old Clock-it code validated S-/A- prefixes
--- in application code (not a DB constraint), which doesn't fit TAPP's
--- admin/employee role vocabulary. Worth the team settling this for real before
--- registration UI is built — this seed's format is a placeholder, not a
--- proposal to adopt permanently.
+-- employee_id format: A-### for admins, S-### for employees. This matches
+-- the live production convention (A-001, A-002 for admins; S-001..S-004 for
+-- employees) and the ID generators in UsersController (inviteAdmin uses
+-- A-%03d, register uses S-%03d).
 
 -- ==== Departments ====
 
@@ -44,15 +41,15 @@ INSERT INTO `devices` (`device_name`, `device_type`, `status`) VALUES
 INSERT INTO `users`
   (`employee_id`, `rfid_id`, `name`, `email`, `password_hash`, `role`, `department_id`, `position`, `status`)
 VALUES
-  ('ADM-001', NULL, 'Priya Naidoo', 'admin@tapp.app',
+  ('A-001', NULL, 'Priya Naidoo', 'admin@tapp.app',
    '$2b$10$ovXjyK8UhvUwm9Qidqe5IuPm5UNzhcAudlFuEPpW7LXzcHGP52RhW', 'admin',
    (SELECT id FROM `departments` WHERE `name` = 'Administration'), 'Administrator', 'active'),
 
-  ('EMP-101', '04A3B2C1', 'Sarah Mthembu', 'sarah@tapp.app',
+  ('S-001', '04A3B2C1', 'Sarah Mthembu', 'sarah@tapp.app',
    '$2b$10$ovXjyK8UhvUwm9Qidqe5IuPm5UNzhcAudlFuEPpW7LXzcHGP52RhW', 'employee',
    (SELECT id FROM `departments` WHERE `name` = 'Operations'), 'Groundskeeper', 'active'),
 
-  ('EMP-102', NULL, 'Thabo Nkosi', 'thabo@tapp.app',
+  ('S-002', NULL, 'Thabo Nkosi', 'thabo@tapp.app',
    '$2b$10$ovXjyK8UhvUwm9Qidqe5IuPm5UNzhcAudlFuEPpW7LXzcHGP52RhW', 'employee',
    (SELECT id FROM `departments` WHERE `name` = 'Operations'), 'Groundskeeper', 'active');
 
@@ -64,11 +61,11 @@ VALUES
 INSERT INTO `leave_requests`
   (`user_id`, `leave_type`, `start_date`, `end_date`, `duration_days`, `reason`, `status`, `decided_by`, `decided_at`)
 VALUES
-  ((SELECT id FROM `users` WHERE `employee_id` = 'EMP-101'), 'annual',
+  ((SELECT id FROM `users` WHERE `employee_id` = 'S-001'), 'annual',
    '2026-08-03', '2026-08-05', 3.0, 'Family event', 'approved',
-   (SELECT id FROM `users` WHERE `employee_id` = 'ADM-001'), '2026-07-29 09:15:00'),
+   (SELECT id FROM `users` WHERE `employee_id` = 'A-001'), '2026-07-29 09:15:00'),
 
-  ((SELECT id FROM `users` WHERE `employee_id` = 'EMP-102'), 'sick',
+  ((SELECT id FROM `users` WHERE `employee_id` = 'S-002'), 'sick',
    '2026-08-01', '2026-08-01', 1.0, 'Doctor appointment', 'pending', NULL, NULL);
 
 -- ==== Attendance ====
@@ -82,20 +79,20 @@ INSERT INTO `attendance`
   (`user_id`, `work_date`, `clock_in`, `clock_out`, `total_hours`, `status`, `source`)
 VALUES
   -- Sarah: on time, Monday
-  ((SELECT id FROM `users` WHERE `employee_id` = 'EMP-101'), '2026-07-27',
+  ((SELECT id FROM `users` WHERE `employee_id` = 'S-001'), '2026-07-27',
    '2026-07-27 07:55:00', '2026-07-27 17:02:00', 9.12, 'present', 'device'),
 
   -- Sarah: late, Tuesday (clocked in after the 10-minute grace period)
-  ((SELECT id FROM `users` WHERE `employee_id` = 'EMP-101'), '2026-07-28',
+  ((SELECT id FROM `users` WHERE `employee_id` = 'S-001'), '2026-07-28',
    '2026-07-28 08:14:00', '2026-07-28 17:00:00', 8.77, 'late', 'device'),
 
   -- Thabo: absent, Wednesday (no clock-in by the deadline; would have been
   -- written by mark_absences.php, not a real clock-in — hence source='manual')
-  ((SELECT id FROM `users` WHERE `employee_id` = 'EMP-102'), '2026-07-29',
+  ((SELECT id FROM `users` WHERE `employee_id` = 'S-002'), '2026-07-29',
    NULL, NULL, NULL, 'absent', 'manual'),
 
   -- Thabo: onsite today — clocked in, hasn't clocked out yet
-  ((SELECT id FROM `users` WHERE `employee_id` = 'EMP-102'), '2026-07-30',
+  ((SELECT id FROM `users` WHERE `employee_id` = 'S-002'), '2026-07-30',
    '2026-07-30 08:01:00', NULL, NULL, 'onsite', 'qr');
 
 -- ==== Settings ====

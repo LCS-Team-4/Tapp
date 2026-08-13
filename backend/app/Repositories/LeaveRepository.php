@@ -114,7 +114,7 @@ class LeaveRepository
     public function findById(int $leaveId): ?array
     {
         // lr.employee_id is the int FK into users.id; u.employee_id is the
-        // human-readable "EMP-0001" string. Alias the FK as user_id so the
+        // human-readable "S-001" string. Alias the FK as user_id so the
         // later u.employee_id doesn't overwrite it in the FETCH_ASSOC row.
         $stmt = Connection::get()->prepare(
             'SELECT lr.*, lr.employee_id AS user_id, lr.request_type AS leave_type, u.employee_id, '

@@ -394,19 +394,20 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
         </div>
         <div class="card" style="margin-top:14px;">
           <div class="section-head"><h3>Manage Admins</h3></div>
-          <p class="muted">Create new admin accounts for trusted colleagues.</p>
+          <p class="muted">Create new admin accounts for trusted colleagues, or promote existing staff to admin.</p>
           <div style="margin-top:12px; display:flex; gap:10px;">
             <button class="btn btn-pink" id="btn-open-invite-admin" type="button">Invite Admin</button>
+          </div>
+
+          <div id="admin-list" style="margin-top:16px;">
+            <p class="muted" style="padding:8px 0;">Loading admins…</p>
           </div>
 
           <div class="modal-overlay" id="modal-invite-admin">
             <div class="modal">
               <h3>Invite Admin</h3>
               <div class="form-field"><label>Full Name</label><input type="text" id="invite-admin-name" placeholder="e.g. Jordan Miles"></div>
-              <div class="form-row" style="margin-top:10px;">
-                <div class="form-field"><label>Employee ID</label><input type="text" id="invite-admin-employee-id" placeholder="e.g. ADM-001"></div>
-                <div class="form-field"><label>Email</label><input type="email" id="invite-admin-email" placeholder="admin@tapp.co"></div>
-              </div>
+              <div class="form-field" style="margin-top:10px;"><label>Email</label><input type="email" id="invite-admin-email" placeholder="admin@tapp.co"></div>
               <div class="form-row" style="margin-top:10px;">
                 <div class="form-field"><label>Password</label><input type="password" id="invite-admin-password" placeholder="••••••••"></div>
                 <div class="form-field"><label>Confirm Password</label><input type="password" id="invite-admin-password-confirm" placeholder="••••••••"></div>

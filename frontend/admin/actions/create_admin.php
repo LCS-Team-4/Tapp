@@ -1,29 +1,28 @@
 <?php
 // create_admin.php — admin-only endpoint to create another admin account
-// via the backend API.
+// via the backend API. Uses the secure /api/admin/admins/invite endpoint
+// (admin-only) instead of the public /auth/signup endpoint, which no longer
+// accepts a role parameter.
 require_once __DIR__ . '/../../auth.php';
 require_role('admin');
 require_once __DIR__ . '/../../lib/api.php';
 
 $name = trim($_POST['name'] ?? '');
-$employee_id = trim($_POST['employee_id'] ?? '');
 $email = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
 $passwordConfirm = trim($_POST['password_confirm'] ?? '');
 
-if ($name === '' || $employee_id === '' || $email === '' || $password === '' || $passwordConfirm === '' || $password !== $passwordConfirm) {
+if ($name === '' || $email === '' || $password === '' || $passwordConfirm === '' || $password !== $passwordConfirm) {
     header('Location: ../portal.php?admin_create_error=1');
     exit;
 }
 
 try {
-    [$status, $body] = api_post('/auth/signup', [
+    [$status, $body] = api_post('/admin/admins/invite', [
         'name' => $name,
-        'employee_id' => $employee_id,
         'email' => $email,
         'password' => $password,
         'password_confirm' => $passwordConfirm,
-        'role' => 'admin',
     ]);
 } catch (Throwable $e) {
     error_log('Create admin API error: ' . $e->getMessage());

@@ -59,5 +59,29 @@ class LeaveCompatibilityTest extends TestCase
 
         $this->assertSame([], $errors);
     }
+
+    public function testSubmitValidatorAcceptsStudyLeave(): void
+    {
+        $errors = LeaveValidator::validateSubmit([
+            'leave_type' => 'stu_leave',
+            'start_date' => '2026-08-20',
+            'end_date' => '2026-08-22',
+            'reason' => 'Exam preparation',
+        ]);
+
+        $this->assertSame([], $errors);
+    }
+
+    public function testSubmitValidatorAcceptsFamilyResponsibilityLeave(): void
+    {
+        $errors = LeaveValidator::validateSubmit([
+            'leave_type' => 'fr_leave',
+            'start_date' => '2026-08-25',
+            'end_date' => '2026-08-26',
+            'reason' => 'Family emergency',
+        ]);
+
+        $this->assertSame([], $errors);
+    }
 }
   

@@ -69,6 +69,20 @@ class UserRepository
         );
         $stmt->execute([$employeeId, $rfidUid, $firstName, $lastName, $email, $password, $role, $department, $position]);
 
+        // Create an initial leave balance row for the new employee with
+        // the default allocations (annual=15, sick=10, study=4, family resp=3).
+        try {
+            $balanceStmt = Connection::get()->prepare(
+                'INSERT INTO leave_balances (employee_id, annual_leave, sick_leave, stu_leave, fr_leave) '
+                . 'VALUES (?, 15, 10, 4, 3) '
+                . 'ON DUPLICATE KEY UPDATE employee_id = employee_id'
+            );
+            $balanceStmt->execute([$employeeId]);
+        } catch (\PDOException) {
+            // leave_balances table may not exist yet — the default balances
+            // will be used via getLeaveBalances() fallback instead.
+        }
+
         return $this->findById((int) Connection::get()->lastInsertId());
     }
 
@@ -162,10 +176,6 @@ class UserRepository
 
     private function baseQuery(): string
     {
-        // NOTE: The live hosted schema has no annual_leave_balance column on
-        // users (it lives in the leave_balance table). The coalesce keeps any
-        // query working even if the column is absent; the actual balance is
-        // resolved in hydrate() via fetchLeaveBalance().
         return 'SELECT u.id, u.employee_id, u.rfid_uid, '
             . 'CONCAT_WS(\' \', u.first_name, u.last_name) AS name, '
             . 'u.email, u.password, u.role, u.department, u.position, u.status '
@@ -173,15 +183,15 @@ class UserRepository
     }
 
     // Resolves the employee's annual leave balance from the leave_balances
-    // table when it exists, falling back to 0.0 when the table (or the row)
-    // is missing so nothing in the app breaks. Balance = allocated - used.
+    // table. The balance is the actual remaining days in the column itself
+    // (the table stores remaining amounts, not allocated/used splits).
     private function fetchLeaveBalance(int $userId, string $employeeId): float
     {
         try {
             $stmt = Connection::get()->prepare(
-                'SELECT (allocated_days - used_days) AS balance '
+                'SELECT annual_leave '
                 . 'FROM leave_balances '
-                . 'WHERE employee_id = ? AND leave_type = \'annual\' LIMIT 1'
+                . 'WHERE employee_id = ? LIMIT 1'
             );
             $stmt->execute([$employeeId]);
             $value = $stmt->fetchColumn();

@@ -338,3 +338,59 @@
 [2026-08-13 10:59:01] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
 [2026-08-13 11:24:44] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
 [2026-08-13 11:28:27] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 11:38:27] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 11:38:27] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 11:39:16] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 11:39:24] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 11:46:13] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:04:28] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:04:29] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:04:49] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:04:49] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:05:13] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:05:13] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:16:12] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:16:39] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:19:53] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:20:04] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:20:04] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:22:05] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:22:17] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:22:37] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:22:53] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:23:03] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:23:03] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:23:21] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:23:22] ERROR: Fatal error: Uncaught PDOException: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`digitcexse_db2`.`leave_requests`, CONSTRAINT `leave_requests_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `users` (`id`) ON DELETE CASCADE) in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:31
+Stack trace:
+#0 C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php(31): PDOStatement->execute(Array)
+#1 Command line code(1): App\Repositories\LeaveRepository->create(1, Array)
+#2 {main}
+
+Next RuntimeException: Unable to create leave request: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`digitcexse_db2`.`leave_requests`, CONSTRAINT `leave_requests_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `users` (`id`) ON DELETE CASCADE) in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:43
+Stack trace:
+#0 Command line code(1): App\Repositories\LeaveRepository->create(1, Array)
+#1 {main}
+  thrown in C:\xampp\htdocs\Tapp\backend\app\Repositories\LeaveRepository.php:43
+[2026-08-13 12:23:41] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:23:48] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:24:04] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:24:24] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:24:52] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:25:08] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:25:27] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:25:34] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:25:36] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:25:42] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:25:58] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:26:40] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:27:07] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:27:30] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:33:20] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:33:27] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:33:38] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:33:39] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:33:45] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:33:45] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:33:55] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env
+[2026-08-13 12:33:55] INFO: Env: loading .env from C:\xampp\htdocs\Tapp\backend\.env

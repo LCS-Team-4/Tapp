@@ -101,9 +101,26 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
             <p class="muted" style="margin-top:6px;">of <?= htmlspecialchars($todayStatus['week_hours_target']) ?> hr target</p>
           </div>
           <div class="card">
-            <div class="sub">Leave Balance</div>
-            <div class="stat-num" style="font-size:26px;"><?= htmlspecialchars($leaveBalance['annual_leave_balance']) ?> <span style="font-size:14px; color:var(--cream-dim); font-weight:600;">days</span></div>
-            <p class="muted" style="margin-top:6px;">annual leave remaining</p>
+            <div class="sub">Leave Balances</div>
+            <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
+              <div style="text-align:center;">
+                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['annual_leave'] ?></div>
+                <div class="muted" style="font-size:12px;">Annual</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['sick_leave'] ?></div>
+                <div class="muted" style="font-size:12px;">Sick</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['stu_leave'] ?></div>
+                <div class="muted" style="font-size:12px;">Study</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['fr_leave'] ?></div>
+                <div class="muted" style="font-size:12px;">Family Resp.</div>
+              </div>
+            </div>
+            <p class="muted" style="margin-top:8px;">days remaining per leave type</p>
           </div>
         </div>
 

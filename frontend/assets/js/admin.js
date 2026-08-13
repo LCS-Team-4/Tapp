@@ -527,9 +527,162 @@ async function decideLeave(leaveId, decision) {
   });
 }
 
+// ---- Live dashboard rendering (SSE + polling fallback) ----
+// Mirrors the PHP helpers in admin/data.php so re-rendered markup matches
+// the initial server-side render exactly.
+
+const FEED_DOT_COLORS = {
+  clock_in: '#9aa574',
+  clock_out: '#d2a7a7',
+  leave_applied: '#d3ac77',
+  leave_decided: '#9aa574',
+};
+const FEED_TEXTS = {
+  clock_in: 'clocked in',
+  clock_out: 'clocked out',
+  leave_applied: 'applied for leave',
+  leave_decided: 'had a leave request decided',
+};
+
+function feedDotColor(type) {
+  return FEED_DOT_COLORS[type] || '#cdb9ab';
+}
+function feedText(type) {
+  return FEED_TEXTS[type] || type || '';
+}
+
+function attendanceBadge(status, isLate) {
+  const map = {
+    present: ['badge-offsite', 'Offsite'],
+    offsite: ['badge-offsite', 'Offsite'],
+    onsite: ['badge-onsite', 'Onsite'],
+    absent: ['badge-absent', 'Absent'],
+  };
+  const [cls, label] = map[status] || map.offsite;
+  return { class: cls, label };
+}
+
+function employeeBadge(status) {
+  const map = {
+    onsite: ['badge-onsite', 'Onsite'],
+    present: ['badge-offsite', 'Offsite'],
+    offsite: ['badge-offsite', 'Offsite'],
+    absent: ['badge-absent', 'Absent'],
+  };
+  const [cls, label] = map[status] || map.offsite;
+  return { class: cls, label };
+}
+
+function initialsOfName(name) {
+  const parts = String(name || '').trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
+}
+
+function renderStats(stats) {
+  const s = stats || {};
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(val ?? 0);
+  };
+  set('stat-onsite', s.employees_onsite);
+  set('stat-checked-in', s.checked_in_today);
+  set('stat-late', s.late_arrivals);
+  set('stat-absent', s.employees_absent);
+  set('bloom-rate', `${s.on_time_rate_pct ?? 0}%`);
+  set('bloom-onsite', s.employees_onsite);
+  set('bloom-late', s.late_arrivals);
+  set('bloom-absent', s.employees_absent);
+}
+
+function renderLiveFeed(feed) {
+  const list = document.getElementById('live-feed-list');
+  if (!list) return;
+  const items = feed || [];
+  if (!items.length) {
+    list.innerHTML = '<p class="muted" style="padding:12px 0;">No activity yet today.</p>';
+    return;
+  }
+  list.innerHTML = items.map((item) => `
+    <div class="feed-item">
+      <span class="feed-time">${escapeHtml(item.time_label)}</span>
+      <span class="feed-dot" style="background:${feedDotColor(item.event_type)};"></span>
+      <span class="feed-text"><b>${escapeHtml(item.employee_name)}</b> ${escapeHtml(feedText(item.event_type))}</span>
+    </div>
+  `).join('');
+}
+
+function renderLateArrivals(lateList) {
+  const wrap = document.getElementById('late-arrivals-list');
+  if (!wrap) return;
+  const late = lateList || [];
+  if (!late.length) {
+    wrap.innerHTML = '<p class="muted" style="padding:12px 0;">No late arrivals today. 🎉</p>';
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Employee</th><th>Clock In</th><th>Minutes Late</th></tr></thead>
+        <tbody>
+          ${late.map((row) => `
+            <tr>
+              <td><div class="emp-cell"><div class="avatar">${escapeHtml(initialsOfName(row.name))}</div><div class="emp-name">${escapeHtml(row.name)}</div></div></td>
+              <td>${escapeHtml(row.clock_in)}</td>
+              <td><span class="badge badge-late">${Number(row.minutes_late || 0)} min</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAttendanceTable(attendance) {
+  const tbody = document.getElementById('attendance-tbody');
+  if (!tbody) return;
+  const rows = attendance || [];
+  tbody.innerHTML = rows.map((entry) => {
+    const badge = attendanceBadge(entry.status, entry.is_late);
+    return `
+      <tr data-name="${escapeHtml(entry.name)}">
+        <td><div class="emp-cell"><div class="avatar">${escapeHtml(entry.initials)}</div><div class="emp-name">${escapeHtml(entry.name)}</div></div></td>
+        <td>${escapeHtml(entry.clock_in ?? '—')}</td>
+        <td>${escapeHtml(entry.clock_out ?? '—')}</td>
+        <td>${escapeHtml(entry.total_hours ?? '—')}</td>
+        <td><span class="badge ${badge.class}">${escapeHtml(badge.label)}</span></td>
+      </tr>
+    `;
+  }).join('');
+
+  // Re-apply the attendance search filter after re-render.
+  const searchEl = document.getElementById('attendance-search');
+  if (searchEl && searchEl.value.trim()) {
+    const query = searchEl.value.trim().toLowerCase();
+    tbody.querySelectorAll('tr[data-name]').forEach((row) => {
+      row.style.display = (row.dataset.name || '').toLowerCase().includes(query) ? '' : 'none';
+    });
+  }
+}
+
+function renderEmployeeStatuses(employees) {
+  const tbody = document.getElementById('employee-tbody');
+  if (!tbody) return;
+  const emps = employees || [];
+  emps.forEach((emp) => {
+    const row = tbody.querySelector(`tr[data-id="${CSS.escape(emp.employee_id)}"]`);
+    if (!row) return;
+    const badge = employeeBadge(emp.today_attendance_status);
+    const cell = row.children[4];
+    if (cell) {
+      cell.innerHTML = `<span class="badge ${badge.class}">${escapeHtml(badge.label)}</span>`;
+    }
+  });
+}
+
 // Fetches the same dashboard endpoint portal.php uses for its initial data,
-// and re-renders the pending + history leave cards (and their counts).
-async function refreshLeaveData() {
+// and re-renders every dynamic section (stats, feed, bloom, late arrivals,
+// attendance table, employee statuses, leave lists).
+async function refreshDashboard() {
   const refreshBtn = document.getElementById('btn-refresh-leave');
   try {
     if (refreshBtn) refreshBtn.disabled = true;
@@ -538,16 +691,24 @@ async function refreshLeaveData() {
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      throw new Error(body.error?.message || 'Unable to refresh leave requests');
+      throw new Error(body.error?.message || 'Unable to refresh dashboard');
     }
     const body = await response.json();
-    const data = body.data || {};
-    renderLeaveLists(data);
+    renderDashboard(body.data || {});
   } catch (error) {
-    console.error('Leave refresh error:', error);
+    console.error('Dashboard refresh error:', error);
   } finally {
     if (refreshBtn) refreshBtn.disabled = false;
   }
+}
+
+function renderDashboard(data) {
+  renderStats(data.dashboard_stats);
+  renderLiveFeed(data.live_feed);
+  renderLateArrivals(data.late_arrivals_list);
+  renderAttendanceTable(data.attendance_monitoring);
+  renderEmployeeStatuses(data.employees);
+  renderLeaveLists(data);
 }
 
 function renderLeaveLists(data) {
@@ -577,24 +738,24 @@ let leavePollingTimer = null;
 let leaveEventSource = null;
 
 // Server-Sent Events (SSE): keep a long-lived connection to the PHP endpoint
-// that streams "update" events whenever pending-leave state changes (new
-// request, or a decision). The browser's EventSource is built-in — no
-// packages. EventSource auto-reconnects when the server ends the stream
-// (the PHP side caps each connection at ~25s), so this is effectively
-// continuous with ~2-3s of latency at most.
+// that streams "update" events whenever anything on the dashboard changes
+// (clock in/out, leave requests, late arrivals, employee presence). The
+// browser's EventSource is built-in — no packages. EventSource auto-reconnects
+// when the server ends the stream (the PHP side caps each connection at
+// ~25s), so this is effectively continuous with ~2-3s of latency at most.
 function startLeavePolling(intervalMs = 30000) {
   const panel = document.getElementById('a-leave');
   if (!panel) return;
 
   // SSE stream (primary, near-instant updates). Relative to the admin portal
   // page, which lives in the same /admin/ directory as this endpoint.
-  const url = 'stream_leave_updates.php';
+  const url = 'stream_updates.php';
   try {
     leaveEventSource = new EventSource(url);
     leaveEventSource.addEventListener('update', (event) => {
       try {
         const data = JSON.parse(event.data);
-        renderLeaveLists(data);
+        renderDashboard(data);
       } catch (e) {
         console.error('Bad SSE update payload:', e);
       }
@@ -613,7 +774,7 @@ function startLeavePolling(intervalMs = 30000) {
   leavePollingTimer = setInterval(() => {
     // Only poll while the page is visible to avoid needless background work.
     if (!document.hidden && document.getElementById('a-leave')) {
-      refreshLeaveData();
+      refreshDashboard();
     }
   }, intervalMs);
 }
@@ -639,8 +800,8 @@ function wireLeave() {
         btn.disabled = false;
         return;
       }
-      // Update the lists live instead of reloading the whole page.
-      await refreshLeaveData();
+      // Update the whole dashboard live instead of reloading the page.
+      await refreshDashboard();
     } catch (error) {
       alert(error.message || 'Unable to update leave request');
       btn.disabled = false;
@@ -649,7 +810,7 @@ function wireLeave() {
 
   // Manual refresh button in the Pending Requests card header.
   const refreshBtn = document.getElementById('btn-refresh-leave');
-  refreshBtn?.addEventListener('click', refreshLeaveData);
+  refreshBtn?.addEventListener('click', refreshDashboard);
 }
 
 // ---- Reports: tile selection + CSV/PDF export ----

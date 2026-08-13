@@ -86,22 +86,22 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
         <div class="grid grid-4" style="margin-bottom:20px;">
           <div class="card stat-card dot-green">
             <div class="stat-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9aa574" stroke-width="1.9"><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/><circle cx="12" cy="8" r="4"/></svg></div>
-            <div class="stat-num"><?= (int) $dashboardStats['employees_onsite'] ?></div>
+            <div class="stat-num" id="stat-onsite"><?= (int) $dashboardStats['employees_onsite'] ?></div>
             <div class="stat-label">Employees Onsite</div>
           </div>
           <div class="card stat-card dot-blue">
             <div class="stat-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#D2A7A7" stroke-width="1.9"><path d="M20 6L9 17l-5-5"/></svg></div>
-            <div class="stat-num"><?= (int) $dashboardStats['checked_in_today'] ?></div>
+            <div class="stat-num" id="stat-checked-in"><?= (int) $dashboardStats['checked_in_today'] ?></div>
             <div class="stat-label">Checked In Today</div>
           </div>
           <div class="card stat-card dot-gold">
             <div class="stat-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#d3ac77" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
-            <div class="stat-num"><?= (int) $dashboardStats['late_arrivals'] ?></div>
+            <div class="stat-num" id="stat-late"><?= (int) $dashboardStats['late_arrivals'] ?></div>
             <div class="stat-label">Late Arrivals</div>
           </div>
           <div class="card stat-card dot-red">
             <div class="stat-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#c26a52" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div>
-            <div class="stat-num"><?= (int) $dashboardStats['employees_absent'] ?></div>
+            <div class="stat-num" id="stat-absent"><?= (int) $dashboardStats['employees_absent'] ?></div>
             <div class="stat-label">Employees Absent</div>
           </div>
         </div>
@@ -109,6 +109,7 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
         <div class="grid grid-2">
           <div class="card">
             <div class="section-head"><h3>Live Feed</h3><span class="badge badge-present">Live</span></div>
+            <div id="live-feed-list">
             <?php foreach ($liveFeed as $item): ?>
             <div class="feed-item">
               <span class="feed-time"><?= htmlspecialchars($item['time_label']) ?></span>
@@ -116,6 +117,7 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
               <span class="feed-text"><b><?= htmlspecialchars($item['employee_name']) ?></b> <?= htmlspecialchars(feed_text($item['event_type'])) ?></span>
             </div>
             <?php endforeach; ?>
+            </div>
           </div>
           <div class="card">
             <div class="section-head"><h3>Attendance Bloom</h3></div>
@@ -125,13 +127,13 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
                 <circle cx="70" cy="70" r="58" fill="none" stroke="#9aa574" stroke-width="14" stroke-dasharray="316" stroke-dashoffset="55" stroke-linecap="round" transform="rotate(-90 70 70)"/>
                 <circle cx="70" cy="70" r="58" fill="none" stroke="#d3ac77" stroke-width="14" stroke-dasharray="316" stroke-dashoffset="270" stroke-linecap="round" transform="rotate(59 70 70)"/>
                 <circle cx="70" cy="70" r="58" fill="none" stroke="#c26a52" stroke-width="14" stroke-dasharray="316" stroke-dashoffset="295" stroke-linecap="round" transform="rotate(97 70 70)"/>
-                <text x="70" y="65" text-anchor="middle" fill="#f3e9de" font-size="24" font-family="Fraunces, serif" font-weight="600"><?= (int) $dashboardStats['on_time_rate_pct'] ?>%</text>
+                <text x="70" y="65" text-anchor="middle" fill="#f3e9de" font-size="24" font-family="Fraunces, serif" font-weight="600" id="bloom-rate"><?= (int) $dashboardStats['on_time_rate_pct'] ?>%</text>
                 <text x="70" y="83" text-anchor="middle" fill="#cdb9ab" font-size="10">on-time rate</text>
               </svg>
               <div class="bloom-legend">
-                <div class="lg-item"><span class="lg-dot" style="background:#9aa574;"></span> Present · <?= (int) $dashboardStats['employees_onsite'] ?></div>
-                <div class="lg-item"><span class="lg-dot" style="background:#d3ac77;"></span> Late · <?= (int) $dashboardStats['late_arrivals'] ?></div>
-                <div class="lg-item"><span class="lg-dot" style="background:#c26a52;"></span> Absent · <?= (int) $dashboardStats['employees_absent'] ?></div>
+                <div class="lg-item"><span class="lg-dot" style="background:#9aa574;"></span> Present · <span id="bloom-onsite"><?= (int) $dashboardStats['employees_onsite'] ?></span></div>
+                <div class="lg-item"><span class="lg-dot" style="background:#d3ac77;"></span> Late · <span id="bloom-late"><?= (int) $dashboardStats['late_arrivals'] ?></span></div>
+                <div class="lg-item"><span class="lg-dot" style="background:#c26a52;"></span> Absent · <span id="bloom-absent"><?= (int) $dashboardStats['employees_absent'] ?></span></div>
               </div>
             </div>
           </div>
@@ -144,6 +146,7 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
             <h3>Late Arrivals</h3>
             <span class="muted">Working hours start <?= htmlspecialchars($systemSettings['working_hours_start']) ?> · <?= (int) $systemSettings['late_threshold_minutes'] ?> min grace</span>
           </div>
+          <div id="late-arrivals-list">
           <?php if (count($lateArrivalsList) === 0): ?>
             <p class="muted" style="padding:12px 0;">No late arrivals today. 🎉</p>
           <?php else: ?>
@@ -162,6 +165,7 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
               </table>
             </div>
           <?php endif; ?>
+          </div>
         </div>
       </div>
 

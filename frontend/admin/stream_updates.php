@@ -1,10 +1,10 @@
 <?php
-// stream_leave_updates.php — Server-Sent Events (SSE) endpoint for the admin
-// Leave tab. Replaces the 15s client-side polling with a long-lived HTTP
-// stream: whenever the pending-leave state changes (a new request from an
-// employee, or an admin approve/decline), the server broadcasts an "update"
-// event carrying the latest pending + history lists. No packages — plain PHP
-// on the server, the browser's built-in EventSource API on the client.
+// stream_updates.php — Server-Sent Events (SSE) endpoint for the entire
+// admin portal. Streams the full /admin/dashboard payload whenever anything
+// changes: people clocking in/out (stat cards, live feed, attendance bloom,
+// late arrivals, attendance table, employee status badges) or leave requests
+// (pending/history lists). No packages — plain PHP on the server, the
+// browser's built-in EventSource API on the client.
 //
 // Lifecycle: this script streams for ~25s then ends. The client's EventSource
 // auto-reconnects within ~3s, so from the user's perspective the connection
@@ -68,15 +68,65 @@ function sse_ping(): void
     flush();
 }
 
-// Compact signature of the pending list — only emit a real update when this
-// changes (new request, or a decision moved a card to history).
-function pending_signature(array $pending): string
+// Compact signature of the whole dashboard — only emit a real update when
+// any of the dynamic sections actually changed (clock events, leave state,
+// late arrivals, employee presence, etc.).
+function dashboard_signature(array $data): string
 {
     $parts = [];
-    foreach ($pending as $row) {
-        $parts[] = ($row['leave_id'] ?? '') . ':' . ($row['status'] ?? '');
+
+    $stats = $data['dashboard_stats'] ?? [];
+    $parts[] = implode('|', [
+        $stats['employees_onsite'] ?? 0,
+        $stats['checked_in_today'] ?? 0,
+        $stats['late_arrivals'] ?? 0,
+        $stats['employees_absent'] ?? 0,
+        $stats['on_time_rate_pct'] ?? 0,
+    ]);
+
+    $feed = $data['live_feed'] ?? [];
+    $feedSig = [];
+    foreach (array_slice($feed, 0, 20) as $item) {
+        $feedSig[] = ($item['time_label'] ?? '') . ':' . ($item['employee_name'] ?? '') . ':' . ($item['event_type'] ?? '');
     }
-    return implode('|', $parts);
+    $parts[] = implode('|', $feedSig);
+
+    $attendance = $data['attendance_monitoring'] ?? [];
+    $attSig = [];
+    foreach ($attendance as $row) {
+        $attSig[] = ($row['employee_id'] ?? '') . ':' . ($row['status'] ?? '') . ':' . ($row['clock_in'] ?? '') . ':' . ($row['clock_out'] ?? '') . ':' . ($row['total_hours'] ?? '') . ':' . ($row['is_late'] ?? 0);
+    }
+    $parts[] = implode('|', $attSig);
+
+    $late = $data['late_arrivals_list'] ?? [];
+    $lateSig = [];
+    foreach ($late as $row) {
+        $lateSig[] = ($row['employee_id'] ?? '') . ':' . ($row['clock_in'] ?? '') . ':' . ($row['minutes_late'] ?? 0);
+    }
+    $parts[] = implode('|', $lateSig);
+
+    $pending = $data['pending_leave_requests'] ?? [];
+    $pendingSig = [];
+    foreach ($pending as $row) {
+        $pendingSig[] = ($row['leave_id'] ?? '') . ':' . ($row['status'] ?? '');
+    }
+    $parts[] = implode('|', $pendingSig);
+
+    $history = $data['leave_history'] ?? [];
+    $historySig = [];
+    foreach ($history as $row) {
+        $historySig[] = ($row['leave_id'] ?? '') . ':' . ($row['status'] ?? '');
+    }
+    $parts[] = implode('|', $historySig);
+
+    $employees = $data['employees'] ?? [];
+    $empSig = [];
+    foreach ($employees as $row) {
+        $empSig[] = ($row['employee_id'] ?? '') . ':' . ($row['today_attendance_status'] ?? '') . ':' . ($row['today_is_late'] ?? 0);
+    }
+    $parts[] = implode('|', $empSig);
+
+    return implode('||', $parts);
 }
 
 $lastSignature = null;
@@ -92,21 +142,16 @@ while (time() < $runUntil) {
         [$status, $body] = api_get('/admin/dashboard');
         if ($status === 200 && is_array($body)) {
             $data = $body['data'] ?? [];
-            $pending = $data['pending_leave_requests'] ?? [];
-            $history = $data['leave_history'] ?? [];
 
-            $signature = pending_signature($pending);
+            $signature = dashboard_signature($data);
             if ($signature !== $lastSignature) {
                 $lastSignature = $signature;
-                sse_send('update', [
-                    'pending_leave_requests' => $pending,
-                    'leave_history' => $history,
-                ]);
+                sse_send('update', $data);
                 $lastPing = time(); // an update is as good as a heartbeat
             }
         }
     } catch (Throwable $e) {
-        error_log('SSE leave stream error: ' . $e->getMessage());
+        error_log('SSE dashboard stream error: ' . $e->getMessage());
     }
 
     // Heartbeat every ~15s so proxies / timeouts don't kill the idle stream.

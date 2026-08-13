@@ -562,12 +562,25 @@ function downloadPdf(filename, title, sections) {
   }
 
   try {
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-      throw new Error('jsPDF library not loaded');
+    // Check for jsPDF - it's exposed as window.jspdf in UMD build
+    if (!window.jspdf) {
+      console.error('Available globals:', Object.keys(window).filter(k => k.includes('jsPDF') || k.includes('pdf')));
+      throw new Error('jsPDF library not loaded. Please refresh the page and try again.');
     }
 
-    const { jsPDF } = window.jspdf;
+    const jsPDFModule = window.jspdf;
+    if (!jsPDFModule.jsPDF) {
+      throw new Error('jsPDF class not found in jspdf module');
+    }
+
+    const { jsPDF } = jsPDFModule;
     const doc = new jsPDF();
+    
+    // Verify autoTable is available
+    if (!doc.autoTable) {
+      throw new Error('jspdf-autotable plugin not loaded. Please refresh the page.');
+    }
+
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     doc.setFontSize(14);
@@ -577,6 +590,7 @@ function downloadPdf(filename, title, sections) {
 
     let cursorY = 30;
     rowsBySections.forEach(({ title: sectionTitle, rows }) => {
+      // Check if we need a new page
       if (cursorY > 250) {
         doc.addPage();
         cursorY = 15;
@@ -585,7 +599,12 @@ function downloadPdf(filename, title, sections) {
       doc.setFontSize(12);
       doc.text(sectionTitle, 14, cursorY);
 
-      const headers = Object.keys(rows[0]);
+      const headers = Object.keys(rows[0] || {});
+      if (headers.length === 0) {
+        console.warn('No headers found for section:', sectionTitle);
+        return;
+      }
+
       doc.autoTable({
         startY: cursorY + 4,
         head: [headers],
@@ -601,7 +620,7 @@ function downloadPdf(filename, title, sections) {
     doc.save(filename);
     console.log('PDF exported successfully:', filename);
   } catch (error) {
-    console.error('Failed to download PDF:', error);
+    console.error('PDF export error:', error);
     throw error;
   }
 }
@@ -691,10 +710,14 @@ function wireReports() {
         alert('No data available for export. Please select a time range and ensure there is data to export.');
         return;
       }
-      if (!window.jspdf || !window.jsPDF) {
-        alert('PDF library not loaded. Please refresh the page and try again.');
+      
+      // Check if libraries are loaded
+      if (!window.jspdf) {
+        alert('PDF library is loading. Please wait a moment and try again.');
+        console.error('jsPDF not available on window object');
         return;
       }
+      
       const title = sections.length === 1 ? sections[0].title : 'Report Export';
       downloadPdf(exportFilename('pdf'), title, sections);
     } catch (error) {
@@ -831,6 +854,16 @@ function wireAdminInvite() {
 wireEmployees();
 wireAttendance();
 wireLeave();
-wireReports();
-wireSettings();
-wireAdminInvite();
+
+// Ensure PDF libraries are loaded before wiring reports
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    wireReports();
+    wireSettings();
+    wireAdminInvite();
+  });
+} else {
+  wireReports();
+  wireSettings();
+  wireAdminInvite();
+}

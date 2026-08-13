@@ -92,31 +92,31 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
           </div>
           <div class="card">
             <div class="sub">Today's Status</div>
-            <span class="badge badge-<?= htmlspecialchars($todayStatus['status']) ?>">Present</span>
-            <p class="muted" style="margin-top:12px;">Clocked in at <?= htmlspecialchars($todayStatus['clock_in']) ?></p>
+            <span class="badge badge-<?= htmlspecialchars($todayStatus['status']) ?>" id="today-status-badge"><?= htmlspecialchars($clockStatusLabel) ?></span>
+            <p class="muted" style="margin-top:12px;">Clocked in at <span id="today-clocked-in"><?= htmlspecialchars($todayStatus['clock_in']) ?></span></p>
           </div>
           <div class="card">
             <div class="sub">This Week</div>
-            <div class="stat-num" style="font-size:26px;"><?= htmlspecialchars($todayStatus['week_hours_logged']) ?> <span style="font-size:14px; color:var(--cream-dim); font-weight:600;">hrs</span></div>
-            <p class="muted" style="margin-top:6px;">of <?= htmlspecialchars($todayStatus['week_hours_target']) ?> hr target</p>
+            <div class="stat-num" style="font-size:26px;"><span id="week-hours"><?= htmlspecialchars($todayStatus['week_hours_logged']) ?></span> <span style="font-size:14px; color:var(--cream-dim); font-weight:600;">hrs</span></div>
+            <p class="muted" style="margin-top:6px;">of <span id="week-hours-target"><?= htmlspecialchars($todayStatus['week_hours_target']) ?></span> hr target</p>
           </div>
           <div class="card">
             <div class="sub">Leave Balances</div>
             <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
               <div style="text-align:center;">
-                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['annual_leave'] ?></div>
+                <div class="stat-num" style="font-size:22px;" id="bal-annual"><?= (int) $leaveBalances['annual_leave'] ?></div>
                 <div class="muted" style="font-size:12px;">Annual</div>
               </div>
               <div style="text-align:center;">
-                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['sick_leave'] ?></div>
+                <div class="stat-num" style="font-size:22px;" id="bal-sick"><?= (int) $leaveBalances['sick_leave'] ?></div>
                 <div class="muted" style="font-size:12px;">Sick</div>
               </div>
               <div style="text-align:center;">
-                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['stu_leave'] ?></div>
+                <div class="stat-num" style="font-size:22px;" id="bal-stu"><?= (int) $leaveBalances['stu_leave'] ?></div>
                 <div class="muted" style="font-size:12px;">Study</div>
               </div>
               <div style="text-align:center;">
-                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['fr_leave'] ?></div>
+                <div class="stat-num" style="font-size:22px;" id="bal-fr"><?= (int) $leaveBalances['fr_leave'] ?></div>
                 <div class="muted" style="font-size:12px;">Family Resp.</div>
               </div>
             </div>
@@ -136,6 +136,7 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
           </div>
           <div class="card">
             <div class="section-head"><h3>Pending Leave</h3></div>
+            <div id="pending-leave-wrap">
             <?php if ($pendingLeave): ?>
             <div class="leave-req-card" style="margin-bottom:0;">
               <div class="lr-main">
@@ -150,6 +151,7 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
             <?php else: ?>
             <p class="muted">No pending leave requests.</p>
             <?php endif; ?>
+            </div>
           </div>
         </div>
       </div>

@@ -292,7 +292,7 @@ $firstName = explode(' ', $user['name'])[0];
   </div>
 </div>
 
-<script src="../assets/js/app.js"></script>
-<script src="../assets/js/employee.js"></script>
+<script src="../assets/js/app.js?v=<?= filemtime(__DIR__ . '/../assets/js/app.js') ?>"></script>
+<script src="../assets/js/employee.js?v=<?= filemtime(__DIR__ . '/../assets/js/employee.js') ?>"></script>
 </body>
 </html>

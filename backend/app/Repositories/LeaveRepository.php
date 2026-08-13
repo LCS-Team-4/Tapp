@@ -19,6 +19,32 @@ class LeaveRepository
         return $row === false ? null : $row;
     }
 
+    // Returns the pending/approved leave requests whose date ranges overlap
+    // [startDate, endDate] (empty array = no overlap). $excludeLeaveId lets
+    // an edit skip the request being edited itself.
+    public function findOverlaps(int $userId, string $startDate, string $endDate, ?int $excludeLeaveId = null): array
+    {
+        $query = 'SELECT id, start_date, end_date, status FROM leave_requests '
+            . 'WHERE employee_id = :user_id '
+            . "AND status IN ('pending', 'approved') "
+            . 'AND start_date <= :end_date AND end_date >= :start_date';
+        $params = [
+            'user_id' => $userId,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ];
+
+        if ($excludeLeaveId !== null) {
+            $query .= ' AND id != :exclude_id';
+            $params['exclude_id'] = $excludeLeaveId;
+        }
+
+        $stmt = Connection::get()->prepare($query);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function create(int $userId, array $payload): array
     {
         try {
@@ -77,8 +103,11 @@ class LeaveRepository
 
     public function findById(int $leaveId): ?array
     {
+        // lr.employee_id is the int FK into users.id; u.employee_id is the
+        // human-readable "EMP-0001" string. Alias the FK as user_id so the
+        // later u.employee_id doesn't overwrite it in the FETCH_ASSOC row.
         $stmt = Connection::get()->prepare(
-            'SELECT lr.*, lr.request_type AS leave_type, u.employee_id, '
+            'SELECT lr.*, lr.employee_id AS user_id, lr.request_type AS leave_type, u.employee_id, '
             . "CONCAT_WS(' ', u.first_name, u.last_name) AS name, u.email "
             . 'FROM leave_requests lr '
             . 'LEFT JOIN users u ON u.id = lr.employee_id WHERE lr.id = :id LIMIT 1'

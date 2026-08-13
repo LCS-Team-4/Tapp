@@ -30,8 +30,18 @@ class LeaveController
             return Response::error('User not found', 403);
         }
 
+        $input = $request->input() ?? [];
+        $startDate = (string) ($input['start_date'] ?? '');
+        $endDate = (string) ($input['end_date'] ?? '');
+        if ($startDate !== '' && $endDate !== '') {
+            $overlaps = $this->repository->findOverlaps((int) $userRecord['id'], $startDate, $endDate);
+            if ($overlaps !== []) {
+                return Response::error($this->overlapMessage($overlaps), 409);
+            }
+        }
+
         try {
-            $leave = $this->repository->create((int) $userRecord['id'], $request->input() ?? []);
+            $leave = $this->repository->create((int) $userRecord['id'], $input);
         } catch (\RuntimeException $e) {
             return Response::json(['message' => 'Leave request could not be saved', 'error' => $e->getMessage()], 500);
         }
@@ -132,7 +142,17 @@ class LeaveController
             return Response::json(['message' => 'Validation failed', 'errors' => $errors], 400);
         }
 
-        $updated = $this->repository->update((int) $leaveId, $request->input() ?? []);
+        $input = $request->input() ?? [];
+        $startDate = (string) ($input['start_date'] ?? '');
+        $endDate = (string) ($input['end_date'] ?? '');
+        if ($startDate !== '' && $endDate !== '') {
+            $overlaps = $this->repository->findOverlaps((int) $user['id'], $startDate, $endDate, (int) $leaveId);
+            if ($overlaps !== []) {
+                return Response::error($this->overlapMessage($overlaps), 409);
+            }
+        }
+
+        $updated = $this->repository->update((int) $leaveId, $input);
         if ($updated === null) {
             return Response::error('Update failed, no data returned', 500);
         }
@@ -188,12 +208,59 @@ class LeaveController
             return Response::error('Leave request not found', 404);
         }
 
-        $updated = $this->repository->update((int) $leaveId, $request->input() ?? []);
+        $input = $request->input() ?? [];
+        $startDate = (string) ($input['start_date'] ?? '');
+        $endDate = (string) ($input['end_date'] ?? '');
+        if ($startDate !== '' && $endDate !== '') {
+            $overlaps = $this->repository->findOverlaps((int) ($existing['user_id'] ?? 0), $startDate, $endDate, (int) $leaveId);
+            if ($overlaps !== []) {
+                return Response::error($this->overlapMessage($overlaps), 409);
+            }
+        }
+
+        $updated = $this->repository->update((int) $leaveId, $input);
         if ($updated === null) {
             return Response::error('Update failed, no data returned', 500);
         }
 
         return Response::json(['message' => 'Leave request updated', 'data' => $updated], 200);
+    }
+
+    // Builds a human-readable message listing the date ranges the user
+    // already has leave booked for, e.g.:
+    //   "You already have leave booked for 13 – 21 Aug (pending)."
+    //   "You already have leave booked for 13 – 21 Aug (pending) and 5 – 7 Sep (approved)."
+    private function overlapMessage(array $overlaps): string
+    {
+        $parts = [];
+        foreach ($overlaps as $row) {
+            $parts[] = $this->formatDateRange((string) ($row['start_date'] ?? ''), (string) ($row['end_date'] ?? ''))
+                . ' (' . htmlspecialchars((string) ($row['status'] ?? 'pending')) . ')';
+        }
+
+        if (count($parts) === 1) {
+            return 'You already have leave booked for ' . $parts[0] . '.';
+        }
+
+        $last = array_pop($parts);
+        return 'You already have leave booked for ' . implode(', ', $parts) . ' and ' . $last . '.';
+    }
+
+    // Formats an ISO date range the same way the employee portal does:
+    // "15 – 17 Jul", single-day "2 Jun", cross-month "30 Jul – 2 Aug".
+    private function formatDateRange(string $startDate, string $endDate): string
+    {
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        [$sy, $sm, $sd] = array_map('intval', explode('-', $startDate));
+        [$ey, $em, $ed] = array_map('intval', explode('-', $endDate));
+
+        if ($startDate === $endDate) {
+            return "{$sd} {$months[$sm - 1]}";
+        }
+        if ($sy === $ey && $sm === $em) {
+            return "{$sd} – {$ed} {$months[$sm - 1]}";
+        }
+        return "{$sd} {$months[$sm - 1]} – {$ed} {$months[$em - 1]}";
     }
 
     private function groupCalendarByDate(array $rows): array

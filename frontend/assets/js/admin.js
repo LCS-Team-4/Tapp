@@ -446,10 +446,77 @@ function postForm(action, fields) {
   form.submit();
 }
 
-// ---- Leave management: approve/decline ----
+// ---- Leave management: approve/decline + live refresh ----
 // Each decision now calls the backend API at /api/admin/leave-requests/{id}
-// instead of the legacy actions/leave_decision.php endpoint.
+// instead of the legacy actions/leave_decision.php endpoint. After a decision
+// (or via the refresh button / auto-polling) the pending + history lists are
+// re-rendered from the live dashboard API instead of reloading the page.
 const API_ROOT = '../../backend/public';
+
+const LEAVE_TYPE_LABELS = {
+  annual: 'Annual Leave',
+  sick: 'Sick Leave',
+  unpaid: 'Unpaid Leave',
+  emergency: 'Emergency Leave',
+  other: 'Other Leave',
+  leave: 'Leave',
+};
+const LEAVE_STROKES = ['#D2A7A7', '#6C714F', '#6D382B'];
+
+function leaveTypeLabel(type) {
+  return LEAVE_TYPE_LABELS[type] || LEAVE_TYPE_LABELS.other || type || 'Leave';
+}
+
+function dayLabel(days) {
+  const n = Number(days || 0);
+  return `${n} day${n === 1 ? '' : 's'}`;
+}
+
+function leaveIcon(i) {
+  return i % 3 === 2
+    ? '<path d="M12 3v6M12 21c-5-2-8-6-8-11 3 0 6 1.5 8 5 2-3.5 5-5 8-5 0 5-3 9-8 11Z"/>'
+    : '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>';
+}
+
+// Mirrors the card markup PHP-rendered in portal.php so a live refresh
+// produces cards visually identical to the initial page render.
+function pendingCardHTML(req, i) {
+  return `
+    <div class="leave-req-card" data-leave-id="${escapeHtml(req.leave_id)}" data-employee-name="${escapeHtml(req.employee_name)}" data-leave-type-label="${escapeHtml(leaveTypeLabel(req.leave_type))}" data-duration-days="${Number(req.duration_days || 0)}" data-reason="${escapeHtml(req.reason)}" data-status="pending" data-decided-at="">
+      <div class="lr-main">
+        <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${LEAVE_STROKES[i % 3]}" stroke-width="1.8">${leaveIcon(i)}</svg></div>
+        <div>
+          <div class="lr-title">${escapeHtml(req.employee_name)} — ${escapeHtml(leaveTypeLabel(req.leave_type))}</div>
+          <div class="lr-sub">${escapeHtml(dayLabel(req.duration_days))} · ${escapeHtml(req.reason)}</div>
+        </div>
+      </div>
+      <div class="leave-req-actions">
+        <span class="badge badge-pending" style="margin-right:6px;">Pending</span>
+        <button class="btn btn-olive btn-sm" data-decision="approved" type="button">Approve</button>
+        <button class="btn btn-rust btn-sm" data-decision="declined" type="button">Decline</button>
+      </div>
+    </div>
+  `;
+}
+
+function historyCardHTML(req, i) {
+  const status = req.status === 'approved' ? 'approved' : 'declined';
+  const label = status === 'approved' ? 'Approved' : 'Declined';
+  return `
+    <div class="leave-req-card" data-leave-id="${escapeHtml(req.leave_id)}" data-employee-name="${escapeHtml(req.employee_name)}" data-leave-type-label="${escapeHtml(leaveTypeLabel(req.leave_type))}" data-duration-days="${Number(req.duration_days || 0)}" data-reason="${escapeHtml(req.reason)}" data-status="${escapeHtml(status)}" data-decided-at="${escapeHtml(req.decided_at)}">
+      <div class="lr-main">
+        <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${LEAVE_STROKES[i % 3]}" stroke-width="1.8">${leaveIcon(i)}</svg></div>
+        <div>
+          <div class="lr-title">${escapeHtml(req.employee_name)} — ${escapeHtml(leaveTypeLabel(req.leave_type))}</div>
+          <div class="lr-sub">${escapeHtml(dayLabel(req.duration_days))} · ${escapeHtml(req.reason)} · Decided ${escapeHtml(req.decided_at)}</div>
+        </div>
+      </div>
+      <div class="leave-req-actions">
+        <span class="badge badge-${escapeHtml(status)}">${escapeHtml(label)}</span>
+      </div>
+    </div>
+  `;
+}
 
 async function decideLeave(leaveId, decision) {
   return fetch(`${API_ROOT}/api/admin/leave-requests/${encodeURIComponent(leaveId)}`, {
@@ -460,26 +527,129 @@ async function decideLeave(leaveId, decision) {
   });
 }
 
+// Fetches the same dashboard endpoint portal.php uses for its initial data,
+// and re-renders the pending + history leave cards (and their counts).
+async function refreshLeaveData() {
+  const refreshBtn = document.getElementById('btn-refresh-leave');
+  try {
+    if (refreshBtn) refreshBtn.disabled = true;
+    const response = await fetch(`${API_ROOT}/api/admin/dashboard`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error?.message || 'Unable to refresh leave requests');
+    }
+    const body = await response.json();
+    const data = body.data || {};
+    renderLeaveLists(data);
+  } catch (error) {
+    console.error('Leave refresh error:', error);
+  } finally {
+    if (refreshBtn) refreshBtn.disabled = false;
+  }
+}
+
+function renderLeaveLists(data) {
+  const pendingList = document.getElementById('leave-list');
+  const historyList = document.getElementById('leave-history-list');
+  const pendingCount = document.getElementById('leave-pending-count');
+  const historyCount = document.getElementById('leave-history-count');
+
+  const pending = data.pending_leave_requests || [];
+  const history = data.leave_history || [];
+
+  if (pendingList) {
+    pendingList.innerHTML = pending.map((req, i) => pendingCardHTML(req, i)).join('');
+  }
+  if (historyList) {
+    historyList.innerHTML = history.map((req, i) => historyCardHTML(req, i)).join('');
+  }
+  if (pendingCount) {
+    pendingCount.textContent = `${pending.length} awaiting review`;
+  }
+  if (historyCount) {
+    historyCount.textContent = `${history.length} decided`;
+  }
+}
+
+let leavePollingTimer = null;
+let leaveEventSource = null;
+
+// Server-Sent Events (SSE): keep a long-lived connection to the PHP endpoint
+// that streams "update" events whenever pending-leave state changes (new
+// request, or a decision). The browser's EventSource is built-in — no
+// packages. EventSource auto-reconnects when the server ends the stream
+// (the PHP side caps each connection at ~25s), so this is effectively
+// continuous with ~2-3s of latency at most.
+function startLeavePolling(intervalMs = 30000) {
+  const panel = document.getElementById('a-leave');
+  if (!panel) return;
+
+  // SSE stream (primary, near-instant updates). Relative to the admin portal
+  // page, which lives in the same /admin/ directory as this endpoint.
+  const url = 'stream_leave_updates.php';
+  try {
+    leaveEventSource = new EventSource(url);
+    leaveEventSource.addEventListener('update', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        renderLeaveLists(data);
+      } catch (e) {
+        console.error('Bad SSE update payload:', e);
+      }
+    });
+    leaveEventSource.onerror = () => {
+      // EventSource reconnects automatically; just log it. The polling
+      // fallback below covers any gap while it's disconnected.
+      console.warn('SSE connection lost — will auto-reconnect.');
+    };
+  } catch (e) {
+    console.error('SSE init failed:', e);
+  }
+
+  // Polling fallback (safety net, less frequent now that SSE is primary).
+  if (leavePollingTimer) clearInterval(leavePollingTimer);
+  leavePollingTimer = setInterval(() => {
+    // Only poll while the page is visible to avoid needless background work.
+    if (!document.hidden && document.getElementById('a-leave')) {
+      refreshLeaveData();
+    }
+  }, intervalMs);
+}
+
 function wireLeave() {
   const panel = document.getElementById('a-leave');
   if (!panel) return;
-  const list = panel.querySelector('#leave-list');
-  if (!list) return;
 
-  list.querySelectorAll('[data-decision]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const card = btn.closest('.leave-req-card');
+  // Event delegation so approve/decline stays wired after the cards are
+  // re-rendered by refreshLeaveData().
+  panel.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-decision]');
+    if (!btn) return;
+    const card = btn.closest('.leave-req-card');
+    if (!card) return;
+
+    btn.disabled = true;
+    try {
       const response = await decideLeave(card.dataset.leaveId, btn.dataset.decision);
       const data = await response.json().catch(() => ({ message: 'Unable to update leave request' }));
-
       if (!response.ok) {
         alert(data.message || 'Unable to update leave request');
+        btn.disabled = false;
         return;
       }
-
-      window.location.reload();
-    });
+      // Update the lists live instead of reloading the whole page.
+      await refreshLeaveData();
+    } catch (error) {
+      alert(error.message || 'Unable to update leave request');
+      btn.disabled = false;
+    }
   });
+
+  // Manual refresh button in the Pending Requests card header.
+  const refreshBtn = document.getElementById('btn-refresh-leave');
+  refreshBtn?.addEventListener('click', refreshLeaveData);
 }
 
 // ---- Reports: tile selection + CSV/PDF export ----
@@ -854,6 +1024,7 @@ function wireAdminInvite() {
 wireEmployees();
 wireAttendance();
 wireLeave();
+startLeavePolling();
 
 // Ensure PDF libraries are loaded before wiring reports
 if (document.readyState === 'loading') {

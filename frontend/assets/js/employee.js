@@ -276,12 +276,18 @@ function wireLeaveForm() {
       reason: reasonEl.value.trim(),
     };
 
+    // Backend errors come back as {"error": {"message": "..."}} — read both
+    // shapes so the real message (e.g. overlapping leave dates) is shown.
+    function errorMessage(data, fallback) {
+      return data?.error?.message || data?.message || fallback;
+    }
+
     if (editingId !== null) {
       const response = await updateLeaveRequest(editingId, fields);
       const data = await response.json().catch(() => ({ message: 'Unexpected response from server' }));
 
       if (!response.ok) {
-        errorEl.textContent = data.message || 'Unable to update leave request';
+        errorEl.textContent = errorMessage(data, 'Unable to update leave request');
         errorEl.style.display = 'block';
         return;
       }
@@ -294,7 +300,7 @@ function wireLeaveForm() {
     const data = await response.json().catch(() => ({ message: 'Unexpected response from server' }));
 
     if (!response.ok) {
-      errorEl.textContent = data.message || 'Unable to submit leave request';
+      errorEl.textContent = errorMessage(data, 'Unable to submit leave request');
       errorEl.style.display = 'block';
       return;
     }

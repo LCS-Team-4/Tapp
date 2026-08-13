@@ -258,7 +258,15 @@ $terminalConnected = strtolower((string) ($terminalStatus['status'] ?? '')) === 
       <!-- Leave management -->
       <div class="tab-panel" id="a-leave">
         <div class="card">
-          <div class="section-head"><h3>Pending Requests</h3><span class="muted" id="leave-pending-count"><?= count($pendingLeaveRequests) ?> awaiting review</span></div>
+          <div class="section-head">
+            <h3>Pending Requests</h3>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="muted" id="leave-pending-count"><?= count($pendingLeaveRequests) ?> awaiting review</span>
+              <button class="btn-icon" id="btn-refresh-leave" type="button" title="Refresh pending requests" aria-label="Refresh pending requests">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-2.64-6.36M21 3v6h-6"/></svg>
+              </button>
+            </div>
+          </div>
           <div id="leave-list">
             <?php foreach ($pendingLeaveRequests as $i => $req): ?>
             <?php

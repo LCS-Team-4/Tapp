@@ -86,7 +86,7 @@ $success = $_GET['success'] ?? '';
       </div>
       <div class="field">
         <label>Employee ID</label>
-        <input name="employee_id" type="text" placeholder="e.g. EMP-0142">
+        <input name="employee_id" type="text" placeholder="e.g. S-005">
       </div>
       <div class="field">
         <label>Email</label>

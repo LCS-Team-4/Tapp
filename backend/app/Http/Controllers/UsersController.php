@@ -231,23 +231,29 @@ class UsersController
 
         $name = trim((string) $request->input('name', ''));
         $email = trim((string) $request->input('email', ''));
+        $password = trim((string) $request->input('password', ''));
+        $department = trim((string) $request->input('department', '')) ?: null;
+        $position = trim((string) $request->input('position', '')) ?: null;
+        $sendWelcomeEmail = (bool) $request->input('send_welcome_email', false);
 
         if ($name === '' || $email === '') {
             return Response::error('Name and email are required', 400);
         }
 
+        // Use provided password or generate a temporary one
+        $temporaryPassword = $password ?: bin2hex(random_bytes(5));
+
         $nameParts = array_values(array_filter(array_map('trim', explode(' ', $name))));
         $firstName = $nameParts[0] ?? 'Unknown';
         $lastName = $nameParts[1] ?? '';
 
-        // Generate a unique employee_id
-        $base = strtoupper(substr($firstName, 0, 1) . substr($lastName, 0, 1));
+        // Generate a unique employee_id in the S-### format (e.g. S-001,
+        // S-004, S-005). Scans upward from 1 so it continues the existing
+        // sequence instead of restarting.
         $counter = 1;
         do {
-            $employeeId = sprintf('EMP-%04d', $counter++);
+            $employeeId = sprintf('S-%03d', $counter++);
         } while ($this->users->employeeIdExists($employeeId));
-
-        $defaultPassword = bin2hex(random_bytes(5));
 
         try {
             $created = $this->users->create(
@@ -255,10 +261,10 @@ class UsersController
                 $firstName,
                 $lastName,
                 $email,
-                password_hash($defaultPassword, PASSWORD_BCRYPT),
+                password_hash($temporaryPassword, PASSWORD_BCRYPT),
                 'staff',
-                trim((string) $request->input('department', '')) ?: null,
-                trim((string) $request->input('position', '')) ?: null,
+                $department,
+                $position,
             );
         } catch (\Throwable $e) {
             return Response::error('Unable to register employee: ' . $e->getMessage(), 500);
@@ -268,7 +274,15 @@ class UsersController
             'employee_id' => $created->employeeId,
             'name' => $created->name,
             'email' => $created->email,
-            'temporary_password' => $defaultPassword,
+            'department' => $department,
+            'position' => $position,
+            'data' => [
+                'employee_id' => $created->employeeId,
+                'name' => $created->name,
+                'email' => $created->email,
+                'department' => $department,
+                'position' => $position,
+            ],
         ], 201);
     }
 
@@ -341,8 +355,143 @@ class UsersController
         return Response::json(['deleted' => true, 'employee_id' => $employeeId]);
     }
 
+    // List all admin accounts (admin-only).
+    public function admins(Request $request): Response
+    {
+        $user = $request->user();
+        if ($user === null || $user['role'] !== 'admin') {
+            return Response::error('Forbidden', 403);
+        }
 
-   
+        $allUsers = $this->users->findAll();
+        $admins = array_map(function (array $u) {
+            return [
+                'employee_id' => $u['employee_id'],
+                'name' => $u['name'],
+                'initials' => $this->initials($u['name']),
+                'email' => $u['email'],
+                'department' => $u['department'],
+                'position' => $u['position'],
+            ];
+        }, array_filter($allUsers, fn ($u) => $u['role'] === 'admin'));
+
+        return Response::json($admins);
+    }
+
+    // Create a brand-new admin account (admin-only). This is the secure
+    // replacement for the old flow that passed role=admin through the public
+    // /auth/signup endpoint.
+    public function inviteAdmin(Request $request): Response
+    {
+        $user = $request->user();
+        if ($user === null || $user['role'] !== 'admin') {
+            return Response::error('Forbidden', 403);
+        }
+
+        $name = trim((string) $request->input('name', ''));
+        $email = trim((string) $request->input('email', ''));
+        $password = (string) $request->input('password', '');
+        $passwordConfirm = (string) $request->input('password_confirm', '');
+
+        if ($name === '' || $email === '' || $password === '' || $password !== $passwordConfirm) {
+            return Response::error('Please fill in all fields and make sure passwords match', 400);
+        }
+
+        if ($this->users->emailExists($email)) {
+            return Response::error('That email already exists', 409);
+        }
+
+        $nameParts = array_values(array_filter(array_map('trim', explode(' ', $name))));
+        $firstName = $nameParts[0] ?? 'Unknown';
+        $lastName = $nameParts[1] ?? '';
+
+        // Generate a unique employee_id for the new admin in the A-### format
+        // (e.g. A-001, A-002, A-003). Scans upward from 1 so it continues the
+        // existing sequence instead of restarting.
+        $counter = 1;
+        do {
+            $employeeId = sprintf('A-%03d', $counter++);
+        } while ($this->users->employeeIdExists($employeeId));
+
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+
+        try {
+            $created = $this->users->create(
+                $employeeId,
+                $firstName,
+                $lastName,
+                $email,
+                $passwordHash,
+                'admin',
+                trim((string) $request->input('department', '')) ?: null,
+                trim((string) $request->input('position', '')) ?: null,
+            );
+        } catch (\Throwable $e) {
+            return Response::error('Unable to create admin account: ' . $e->getMessage(), 500);
+        }
+
+        return Response::json($created->toArray(), 201);
+    }
+
+    // Promote an existing staff/employee user to the admin role (admin-only).
+    // This lets an admin convert a staff member or newly registered user
+    // into an admin without creating a duplicate account.
+    public function promoteToAdmin(Request $request, string $employeeId): Response
+    {
+        $user = $request->user();
+        if ($user === null || $user['role'] !== 'admin') {
+            return Response::error('Forbidden', 403);
+        }
+
+        $existing = $this->users->findByEmployeeId($employeeId);
+        if ($existing === null) {
+            return Response::error('User not found', 404);
+        }
+
+        if ($existing->role === 'admin') {
+            return Response::error('User is already an admin', 400);
+        }
+
+        $updated = $this->users->updateRoleByEmployeeId($employeeId, 'admin');
+        if ($updated === null) {
+            return Response::error('Unable to promote user to admin', 500);
+        }
+
+        return Response::json($updated->toArray());
+    }
+
+    // Demote an admin back to staff (admin-only). Prevents removing the
+    // last remaining admin to avoid locking everyone out.
+    public function demoteFromAdmin(Request $request, string $employeeId): Response
+    {
+        $user = $request->user();
+        if ($user === null || $user['role'] !== 'admin') {
+            return Response::error('Forbidden', 403);
+        }
+
+        $existing = $this->users->findByEmployeeId($employeeId);
+        if ($existing === null) {
+            return Response::error('User not found', 404);
+        }
+
+        if ($existing->role !== 'admin') {
+            return Response::error('User is not an admin', 400);
+        }
+
+        // Prevent removing the last admin.
+        $allUsers = $this->users->findAll();
+        $adminCount = count(array_filter($allUsers, fn ($u) => $u['role'] === 'admin'));
+        if ($adminCount <= 1) {
+            return Response::error('Cannot demote the last admin account', 400);
+        }
+
+        $updated = $this->users->updateRoleByEmployeeId($employeeId, 'staff');
+        if ($updated === null) {
+            return Response::error('Unable to demote admin', 500);
+        }
+
+        return Response::json($updated->toArray());
+    }
     private function shapeLeave(array $req): array
     {
         $leaveType = $req['leave_type'] ?? $req['request_type'] ?? 'other';

@@ -155,7 +155,10 @@ class AttendanceService
                 'clock_in' => null,
                 'clock_out' => null,
                 'total_hours' => null,
-                'week_hours_logged' => 0,
+                // Still accumulate the week's hours even when the employee
+                // hasn't clocked in yet today (e.g. early morning or a day
+                // off) so the dashboard "This Week" card is never stale.
+                'week_hours_logged' => $this->weekHoursLogged($employeeId),
                 'week_hours_target' => 40,
             ];
         }

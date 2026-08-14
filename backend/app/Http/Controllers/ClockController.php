@@ -7,6 +7,7 @@ use App\Http\Request;
 use App\Http\Response;
 use App\Repositories\UserRepository;
 use App\Services\AttendanceService;
+use App\Services\TokenService;
 
 class ClockController
 {
@@ -18,14 +19,18 @@ class ClockController
             // Clock events in the hosted schema are keyed by employee_id,
             // not user_id — for the Pi terminal's HMAC-token flow, the
             // employee_id is passed directly as the token payload.
-            $employeeId = (string) $request->input('employee_id');
-            if ($employeeId === '') {
-                return Response::error('employee_id is required', 400);
+            if ($token === '') {
+                return Response::error('token is required', 400);
             }
 
-            $user = (new UserRepository())->findByEmployeeId($employeeId);
+            $payload = (new TokenService())->verify($token);
+            $user = (new UserRepository())->findById((int) $payload['user_id']);
             if ($user === null) {
                 return Response::error('Unknown employee', 401);
+            }
+
+            if ($user->role !== 'employee') {
+                return Response::error('Forbidden', 403);
             }
 
             $result = (new AttendanceService())->toggle($user->employeeId, 'device');

@@ -8,6 +8,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TokenController;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\RequireAdmin;
+use App\Http\Middleware\RequireEmployee;
 use App\Http\Request;
 use App\Http\Response;
 
@@ -30,20 +31,20 @@ $leaveController = new LeaveController();
 $settingsController = new SettingsController();
 $usersController = new UsersController();
 
-$router->post('/clock/token', [$tokenController, 'issue'], [Authenticate::class]);
+$router->post('/clock/token', [$tokenController, 'issue'], [Authenticate::class, RequireEmployee::class]);
 $router->post('/clock/redeem', [$clockController, 'redeem']);
-$router->post('/clock/toggle', [$clockController, 'toggle'], [Authenticate::class]);
+$router->post('/clock/toggle', [$clockController, 'toggle'], [Authenticate::class, RequireEmployee::class]);
 
-$router->post('/leave-request', [$leaveController, 'submit'], [Authenticate::class]);
-$router->put('/leave-requests/{id}', [$leaveController, 'updateOwn'], [Authenticate::class]);
-$router->delete('/leave-requests/{id}', [$leaveController, 'cancel'], [Authenticate::class]);
-$router->get('/leave-requests', [$leaveController, 'getCalendar'], [Authenticate::class]);
+$router->post('/leave-request', [$leaveController, 'submit'], [Authenticate::class, RequireEmployee::class]);
+$router->put('/leave-requests/{id}', [$leaveController, 'updateOwn'], [Authenticate::class, RequireEmployee::class]);
+$router->delete('/leave-requests/{id}', [$leaveController, 'cancel'], [Authenticate::class, RequireEmployee::class]);
+$router->get('/leave-requests', [$leaveController, 'getCalendar'], [Authenticate::class, RequireEmployee::class]);
 $router->get('/admin/leave-requests', [$leaveController, 'getLeave'], [Authenticate::class, RequireAdmin::class]);
 $router->put('/admin/leave-requests/{id}', [$leaveController, 'updateStatus'], [Authenticate::class, RequireAdmin::class]);
 $router->put('/admin/leave-requests/{id}/updateRequest', [$leaveController, 'updateLeave'], [Authenticate::class, RequireAdmin::class]);
 
 $router->get('/users', [$usersController, 'getCurrentUser'], [Authenticate::class]);
-$router->get('/users/profile', [$usersController, 'profile'], [Authenticate::class]);
+$router->get('/users/profile', [$usersController, 'profile'], [Authenticate::class, RequireEmployee::class]);
 $router->get('/admin/dashboard', [$usersController, 'dashboard'], [Authenticate::class, RequireAdmin::class]);
 $router->get('/admin/employees', [$usersController, 'employees'], [Authenticate::class, RequireAdmin::class]);
 $router->post('/admin/employees', [$usersController, 'register'], [Authenticate::class, RequireAdmin::class]);

@@ -7,13 +7,15 @@ $employee_id = trim($_POST['employee_id'] ?? '');
 $email = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
 $passwordConfirm = trim($_POST['password_confirm'] ?? '');
-$role = trim($_POST['role'] ?? 'employee');
 
 if ($name === '' || $employee_id === '' || $email === '' || $password === '' || $passwordConfirm === '' || $password !== $passwordConfirm) {
     header('Location: signup.php?error=1');
     exit;
 }
 
+// Public signups always create staff/employee accounts. The backend
+// AuthController::signup() hardcodes the role to 'staff' so there is no
+// privilege escalation vector via the signup form.
 try {
     [$status, $body] = api_post('/auth/signup', [
         'name' => $name,
@@ -21,7 +23,6 @@ try {
         'email' => $email,
         'password' => $password,
         'password_confirm' => $passwordConfirm,
-        'role' => $role,
     ]);
 } catch (Throwable $e) {
     error_log('Signup API error: ' . $e->getMessage());

@@ -1,4 +1,12 @@
 <?php
+// SECURITY: This debug script is disabled in production. It exposes
+// password hashes and database internals — it must never be accessible
+// to unauthenticated users.
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require __DIR__ . '/backend/bootstrap/app.php';
 $pdo = App\Database\Connection::get();
 $cols = $pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);

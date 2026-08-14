@@ -17,8 +17,15 @@ function require_role(string $role): void
     // trailing slash so root deployments don't end up with "//login.php"
     $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'], 2)), '/');
 
-    if (empty($_SESSION['authenticated']) && empty($_SESSION['user_id'])) {
+    if (empty($_SESSION['authenticated']) || empty($_SESSION['user_id'])) {
         header('Location: ' . $base . '/login.php');
+        exit;
+    }
+
+    $currentRole = $_SESSION['role'] ?? '';
+    if ($currentRole !== $role) {
+        $destination = $currentRole === 'admin' ? '/admin/portal.php' : '/employee/portal.php';
+        header('Location: ' . $base . $destination);
         exit;
     }
 }

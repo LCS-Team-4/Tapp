@@ -1,4 +1,11 @@
 <?php
+// SECURITY: This debug script is disabled in production. It exposes
+// API internals — it must never be accessible to unauthenticated users.
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 $_SERVER['SCRIPT_NAME'] = '/Tapp/frontend/login_process.php';
 $_SERVER['HTTP_HOST'] = 'localhost';
 $_SERVER['HTTPS'] = 'off';

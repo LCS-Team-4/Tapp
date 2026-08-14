@@ -1,4 +1,12 @@
 <?php
+// SECURITY: This schema-migration script is disabled in production. It
+// executes raw SQL against the database — it must never be accessible
+// to unauthenticated users.
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require __DIR__ . '/backend/bootstrap/app.php';
 
 $pdo = App\Database\Connection::get();

@@ -1,2 +1,4 @@
 _design-reference/
 .env/
+# Database backups contain production/application data
+backend/storage/backups/*.sql

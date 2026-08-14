@@ -411,8 +411,9 @@ function wireEmployees() {
       }
     } else {
       try {
-        const password = passwordEl.value || generateRandomPassword();
-        const response = await fetch(`${API_ROOT}/api/admin/employees`, {
+        // Local PHP action (avoids broken HTTP loopback to /backend/public).
+        // Password is always generated server-side.
+        const response = await fetch('actions/register_employee.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -421,7 +422,6 @@ function wireEmployees() {
             email,
             department,
             position,
-            password,
           }),
         });
 
@@ -431,7 +431,8 @@ function wireEmployees() {
           throw new Error(message);
         }
 
-        const created = body.data || {};
+        const created = body.data || body || {};
+        const temporaryPassword = created.temporary_password || body.temporary_password || '';
         const newRow = buildEmployeeRow({
           employee_id: created.employee_id || nextEmployeeId(tbody),
           name: created.name || name,
@@ -442,6 +443,11 @@ function wireEmployees() {
         });
         wireRowActions(newRow);
         tbody.appendChild(newRow);
+
+        // Show the auto-generated password so admin can copy / share it
+        if (passwordEl) {
+          passwordEl.value = temporaryPassword;
+        }
 
         // Show success message
         if (errorEl) {
@@ -454,19 +460,21 @@ function wireEmployees() {
           email,
           department,
           position,
-          password,
+          password: temporaryPassword,
         });
 
         if (emailResult.sent) {
-          alert(`Employee registered successfully! Welcome email sent to ${email}.`);
+          alert(`Employee registered successfully!\n\nLogin details:\nEmployee ID: ${created.employee_id}\nTemporary password: ${temporaryPassword}\n\nWelcome email sent to ${email}.\nEmployee must change this password on first login.`);
         } else {
-          alert(`Employee registered successfully, but the welcome email could not be sent. EmailJS says: ${emailResult.reason}`);
+          alert(`Employee registered successfully!\n\nLogin details:\nEmployee ID: ${created.employee_id}\nTemporary password: ${temporaryPassword}\n\n(Email could not be sent: ${emailResult.reason})\nEmployee must change this password on first login.`);
         }
       } catch (error) {
+        const msg = error.message || 'Unable to register employee';
         if (errorEl) {
-          errorEl.textContent = error.message;
+          errorEl.textContent = msg;
           errorEl.style.display = 'block';
         }
+        alert('Registration failed: ' + msg);
         return;
       }
     }
@@ -1421,6 +1429,7 @@ function wirePromoteToAdmin() {
 }
 
 wireEmployees();
+wirePasswordResets();
 wireAttendance();
 wireLeave();
 startLeavePolling();
@@ -1440,3 +1449,75 @@ if (document.readyState === 'loading') {
   wireAdminInvite();
   loadAdmins();
 }
+
+
+// ---- Password reset requests (admin verification) ----
+function wirePasswordResets() {
+  const panel = document.getElementById('a-password-resets');
+  if (!panel) return;
+  const tbody = panel.querySelector('#password-reset-tbody');
+  if (!tbody) return;
+
+  async function loadRequests() {
+    tbody.innerHTML = '<tr><td colspan="5" style="opacity:0.6;">Loading…</td></tr>';
+    try {
+      const response = await fetch('actions/list_password_resets.php', { credentials: 'include' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error?.message || 'Failed to load');
+      const rows = body.data?.requests || [];
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="opacity:0.6;">No password reset requests.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map((r) => {
+        const pending = r.status === 'pending';
+        const actions = pending
+          ? `<button class="btn btn-pink" type="button" data-pr-approve="${r.id}">Approve</button>
+             <button class="btn btn-outline" type="button" data-pr-reject="${r.id}">Reject</button>`
+          : '—';
+        return `<tr data-id="${r.id}">
+          <td>${escapeHtml(r.employee_id || '')}</td>
+          <td>${escapeHtml(r.email || '')}</td>
+          <td>${escapeHtml(r.created_at || '')}</td>
+          <td><span class="badge">${escapeHtml(r.status || '')}</span></td>
+          <td style="display:flex;gap:8px;flex-wrap:wrap;">${actions}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color:#c44;">${escapeHtml(e.message || 'Error')}</td></tr>`;
+    }
+  }
+
+  tbody.addEventListener('click', async (ev) => {
+    const approveBtn = ev.target.closest('[data-pr-approve]');
+    const rejectBtn = ev.target.closest('[data-pr-reject]');
+    const id = approveBtn?.dataset.prApprove || rejectBtn?.dataset.prReject;
+    if (!id) return;
+    const decision = approveBtn ? 'approved' : 'rejected';
+    const label = decision === 'approved' ? 'approve' : 'reject';
+    if (!confirm(`Are you sure you want to ${label} this password reset request?`)) return;
+    try {
+      const response = await fetch('actions/password_reset_decision.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ request_id: Number(id), decision }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error?.message || 'Request failed');
+      alert(body.data?.message || 'Done');
+      loadRequests();
+    } catch (e) {
+      alert(e.message || 'Failed');
+    }
+  });
+
+  // Reload when tab is opened
+  document.querySelectorAll('[data-panel="a-password-resets"]').forEach((btn) => {
+    btn.addEventListener('click', () => loadRequests());
+  });
+
+  // Initial load if panel is somehow active
+  if (panel.classList.contains('active')) loadRequests();
+}
+

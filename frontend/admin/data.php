@@ -16,6 +16,49 @@ $data = api_data($body);
 // ---- 001_create_users ----
 $employees = $data['employees'] ?? [];
 
+// Fallback: load employees directly from the database when the HTTP API
+// returns nothing (common with the PHP built-in server).
+if ($employees === []) {
+    try {
+        $backendRoot = dirname(__DIR__, 2) . '/backend';
+        $autoload = $backendRoot . '/vendor/autoload.php';
+        $bootstrap = $backendRoot . '/bootstrap/app.php';
+        if (is_file($autoload)) {
+            require_once $autoload;
+            if (!function_exists('config') && is_file($bootstrap)) {
+                require $bootstrap;
+            }
+            $users = new \App\Repositories\UserRepository();
+            $all = $users->findAll();
+            $employees = [];
+            foreach ($all as $u) {
+                // Skip admin accounts — only show staff/employees
+                if (($u['role'] ?? '') === 'admin') {
+                    continue;
+                }
+                $name = $u['name'] ?? '';
+                $parts = array_filter(array_map('trim', explode(' ', $name)));
+                $initials = count($parts) === 0
+                    ? '??'
+                    : strtoupper(implode('', array_map(fn ($p) => $p[0], $parts)));
+                $employees[] = [
+                    'employee_id' => $u['employee_id'] ?? '',
+                    'name' => $name,
+                    'email' => $u['email'] ?? '',
+                    'department' => $u['department'] ?? '',
+                    'position' => $u['position'] ?? '',
+                    'status' => 'active',
+                    'today_attendance_status' => 'absent',
+                    'today_is_late' => false,
+                    'initials' => $initials,
+                ];
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Admin employees DB fallback: ' . $e->getMessage());
+    }
+}
+
 $employeeDepartmentOptions = ['Engineering', 'Design', 'Operations', 'Marketing', 'Finance', 'Security'];
 $departmentOptions = array_merge(['All departments'], $employeeDepartmentOptions);
 

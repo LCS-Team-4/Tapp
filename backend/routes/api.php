@@ -24,6 +24,7 @@ $router->post('/auth/login', [$authController, 'login']);
 $router->post('/auth/signup', [$authController, 'signup']);
 $router->post('/auth/logout', [$authController, 'logout']);
 $router->get('/auth/session', [$authController, 'session'], [Authenticate::class]);
+$router->post('/auth/change-password', [$authController, 'changePassword'], [Authenticate::class]);
 
 $tokenController = new TokenController();
 $clockController = new ClockController();

@@ -76,6 +76,10 @@ if (is_readable($emailEnvPath)) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="18" cy="8.5" r="2.7"/><path d="M15.5 14.3c2.7.4 4.9 2.4 5 5.7"/></svg>
           Employees
         </button>
+                <button class="nav-item" data-panel="a-password-resets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Password Resets
+        </button>
         <button class="nav-item" data-panel="a-attendance">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
           Attendance
@@ -266,7 +270,34 @@ if (is_readable($emailEnvPath)) {
       </div>
 
       <!-- Attendance monitoring -->
-      <div class="tab-panel" id="a-attendance">
+      
+      <!-- Password reset requests -->
+      <div class="tab-panel" id="a-password-resets">
+        <div class="card">
+          <div class="section-head">
+            <h3>Password Reset Requests</h3>
+            <p style="margin:0; opacity:0.75; font-size:13px;">Verify employees who requested a new password. Approving applies the new password immediately.</p>
+          </div>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee ID</th>
+                  <th>Email</th>
+                  <th>Requested</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="password-reset-tbody">
+                <tr><td colspan="5" style="opacity:0.6;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+<div class="tab-panel" id="a-attendance">
         <div class="card">
           <div class="toolbar">
             <input class="search-input" id="attendance-search" placeholder="Search by employee…">

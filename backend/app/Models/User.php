@@ -18,6 +18,7 @@ class User implements \JsonSerializable
         public readonly ?string $position,
         public readonly string $status,
         public readonly float $annualLeaveBalance,
+        public readonly bool $mustChangePassword = false,
     ) {
     }
 
@@ -34,6 +35,7 @@ class User implements \JsonSerializable
             'position' => $this->position,
             'status' => $this->status,
             'annual_leave_balance' => $this->annualLeaveBalance,
+            'must_change_password' => $this->mustChangePassword,
         ];
     }
 

@@ -115,35 +115,51 @@ function startLiveClock() {
 function wireAccountForm() {
   const nameEl = document.getElementById('profile-name');
   const emailEl = document.getElementById('profile-email');
-  const nameWrap = document.getElementById('field-profile-name');
   const emailWrap = document.getElementById('field-profile-email');
   const errorEl = document.getElementById('profile-save-error');
   const successEl = document.getElementById('profile-save-success');
   const saveBtn = document.getElementById('btn-save-profile');
   if (!saveBtn) return;
 
-  saveBtn.addEventListener('click', () => {
+  // Full name, employee ID and department are locked — employees may only
+  // change contact details (email).
+  if (nameEl) nameEl.disabled = true;
+  const deptEl = document.getElementById('profile-department');
+  if (deptEl) deptEl.disabled = true;
+
+  saveBtn.addEventListener('click', async () => {
     successEl.style.display = 'none';
-    const name = nameEl.value.trim();
     const email = emailEl.value.trim();
 
-    const nameEmpty = !name;
     const emailEmpty = !email;
-    nameWrap?.classList.toggle('invalid', nameEmpty);
     emailWrap?.classList.toggle('invalid', emailEmpty);
 
-    if (nameEmpty || emailEmpty) {
-      errorEl.textContent = 'Full Name and Email are required.';
+    if (emailEmpty) {
+      errorEl.textContent = 'Email is required.';
       errorEl.style.display = 'block';
       return;
     }
     errorEl.style.display = 'none';
+    saveBtn.disabled = true;
 
-    // Front-end only — no PATCH /api/employees/{id} endpoint yet.
-    const whoEl = document.querySelector('.topbar .who');
-    if (whoEl) whoEl.textContent = name;
-
-    successEl.style.display = 'block';
+    try {
+      const response = await fetch('actions/update_email.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.error?.message || 'Unable to update email');
+      }
+      successEl.style.display = 'block';
+    } catch (err) {
+      errorEl.textContent = err.message || 'Unable to update email';
+      errorEl.style.display = 'block';
+    } finally {
+      saveBtn.disabled = false;
+    }
   });
 }
 
@@ -156,7 +172,7 @@ function wirePasswordForm() {
   const updateBtn = document.getElementById('btn-update-password');
   if (!updateBtn) return;
 
-  updateBtn.addEventListener('click', () => {
+  updateBtn.addEventListener('click', async () => {
     successEl.style.display = 'none';
 
     if (!currentEl.value) {
@@ -164,18 +180,44 @@ function wirePasswordForm() {
       errorEl.style.display = 'block';
       return;
     }
-    if (!newEl.value || newEl.value !== confirmEl.value) {
+    if (!newEl.value || newEl.value.length < 8) {
+      errorEl.textContent = 'New password must be at least 8 characters.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    if (newEl.value !== confirmEl.value) {
       errorEl.textContent = 'New Password and Confirm New Password must match.';
       errorEl.style.display = 'block';
       return;
     }
     errorEl.style.display = 'none';
+    updateBtn.disabled = true;
 
-    // Front-end only — no PATCH /api/auth/password endpoint yet.
-    currentEl.value = '';
-    newEl.value = '';
-    confirmEl.value = '';
-    successEl.style.display = 'block';
+    try {
+      const response = await fetch('actions/change_password.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          current_password: currentEl.value,
+          new_password: newEl.value,
+          confirm_password: confirmEl.value,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.error?.message || 'Unable to update password');
+      }
+      currentEl.value = '';
+      newEl.value = '';
+      confirmEl.value = '';
+      successEl.style.display = 'block';
+    } catch (err) {
+      errorEl.textContent = err.message || 'Unable to update password';
+      errorEl.style.display = 'block';
+    } finally {
+      updateBtn.disabled = false;
+    }
   });
 }
 
@@ -612,3 +654,77 @@ wirePasswordToggles();
 wireLeaveForm();
 wireHistory();
 startEmployeeLiveUpdates();
+
+// ---- First-login forced password change (employee portal only) ----
+function wireForcePasswordChange() {
+  if (!window.__MUST_CHANGE_PASSWORD__) return;
+
+  const modal = document.getElementById('force-password-modal');
+  if (!modal) return;
+
+  modal.style.display = 'flex';
+  // Prevent interaction with the rest of the portal until password is changed
+  document.body.style.overflow = 'hidden';
+
+  const currentEl = document.getElementById('force-pwd-current');
+  const newEl = document.getElementById('force-pwd-new');
+  const confirmEl = document.getElementById('force-pwd-confirm');
+  const errorEl = document.getElementById('force-pwd-error');
+  const btn = document.getElementById('btn-force-change-password');
+
+  btn.addEventListener('click', async () => {
+    errorEl.style.display = 'none';
+    const current = currentEl.value;
+    const next = newEl.value;
+    const confirm = confirmEl.value;
+
+    if (!current) {
+      errorEl.textContent = 'Please enter your current (temporary) password.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    if (!next || next.length < 8) {
+      errorEl.textContent = 'New password must be at least 8 characters.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    if (next !== confirm) {
+      errorEl.textContent = 'New password and confirmation do not match.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Updating…';
+
+    try {
+      const response = await fetch('actions/change_password.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          current_password: current,
+          new_password: next,
+          confirm_password: confirm,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.error?.message || body.message || 'Unable to update password');
+      }
+
+      // Success — hide modal and restore portal
+      modal.style.display = 'none';
+      document.body.style.overflow = '';
+      window.__MUST_CHANGE_PASSWORD__ = false;
+      alert('Password updated successfully. You can now use the portal.');
+    } catch (err) {
+      errorEl.textContent = err.message || 'Unable to update password';
+      errorEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Set New Password & Continue';
+    }
+  });
+}
+
+wireForcePasswordChange();

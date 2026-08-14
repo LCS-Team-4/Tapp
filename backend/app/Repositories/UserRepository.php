@@ -59,31 +59,81 @@ class UserRepository
         return $this->hydrate($row);
     }
 
-    public function create(string $employeeId, string $firstName, string $lastName, string $email, string $password, string $role, ?string $department = null, ?string $position = null): User
+    public function create(string $employeeId, string $firstName, string $lastName, string $email, string $password, string $role, ?string $department = null, ?string $position = null, bool $mustChangePassword = false): User
     {
         $rfidUid = $this->generateRfidUid($employeeId);
+        $pdo = Connection::get();
 
-        $stmt = Connection::get()->prepare(
-            'INSERT INTO users (employee_id, rfid_uid, first_name, last_name, email, password, role, department, position, status) '
-            . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'OUT\')'
-        );
-        $stmt->execute([$employeeId, $rfidUid, $firstName, $lastName, $email, $password, $role, $department, $position]);
+        // Hosted DB uses role values "staff" / "admin". Some schemas use
+        // "employee" instead of "staff" — try both if needed.
+        $roleCandidates = $role === 'admin'
+            ? ['admin']
+            : array_values(array_unique([$role, 'staff', 'employee']));
 
-        // Create an initial leave balance row for the new employee with
-        // the default allocations (annual=15, sick=10, study=4, family resp=3).
+        $lastError = null;
+        $inserted = false;
+        foreach ($roleCandidates as $roleValue) {
+            try {
+                $stmt = $pdo->prepare(
+                    'INSERT INTO users (employee_id, rfid_uid, first_name, last_name, email, password, role, department, position, status) '
+                    . "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'OUT')"
+                );
+                $stmt->execute([
+                    $employeeId, $rfidUid, $firstName, $lastName, $email,
+                    $password, $roleValue, $department, $position,
+                ]);
+                $inserted = true;
+                break;
+            } catch (\PDOException $e) {
+                $lastError = $e;
+                // Retry with next role candidate on invalid enum / data errors.
+                $msg = strtolower($e->getMessage());
+                if (str_contains($msg, 'role') || str_contains($msg, 'enum') || str_contains($msg, '1265') || str_contains($msg, '1366')) {
+                    continue;
+                }
+                throw $e;
+            }
+        }
+
+        if (!$inserted) {
+            throw $lastError ?? new \RuntimeException('Unable to insert employee');
+        }
+
+        $newId = (int) $pdo->lastInsertId();
+
+        if ($mustChangePassword) {
+            try {
+                $flagStmt = $pdo->prepare(
+                    'UPDATE users SET must_change_password = 1 WHERE employee_id = ?'
+                );
+                $flagStmt->execute([$employeeId]);
+            } catch (\PDOException) {
+                // Column not present yet — ignore until migration is applied.
+            }
+        }
+
         try {
-            $balanceStmt = Connection::get()->prepare(
+            $balanceStmt = $pdo->prepare(
                 'INSERT INTO leave_balances (employee_id, annual_leave, sick_leave, stu_leave, fr_leave) '
                 . 'VALUES (?, 15, 10, 4, 3) '
                 . 'ON DUPLICATE KEY UPDATE employee_id = employee_id'
             );
             $balanceStmt->execute([$employeeId]);
         } catch (\PDOException) {
-            // leave_balances table may not exist yet — the default balances
-            // will be used via getLeaveBalances() fallback instead.
+            // leave_balances table may not exist yet.
         }
 
-        return $this->findById((int) Connection::get()->lastInsertId());
+        $created = $this->findByEmployeeId($employeeId);
+        if ($created === null && $newId > 0) {
+            $created = $this->findById($newId);
+        }
+        if ($created === null) {
+            throw new \RuntimeException(
+                'Employee was inserted but could not be reloaded (id=' . $newId . ', employee_id=' . $employeeId . ')'
+            );
+        }
+
+        return $created;
     }
 
     public function emailExists(string $email): bool
@@ -175,6 +225,38 @@ class UserRepository
         return $this->findByEmployeeId($employeeId);
     }
 
+    /**
+     * Change a user's password and clear the must_change_password flag.
+     * Returns true on success.
+     */
+    public function changePassword(int $userId, string $newPasswordHash): bool
+    {
+        try {
+            $stmt = Connection::get()->prepare(
+                'UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?'
+            );
+            $stmt->execute([$newPasswordHash, $userId]);
+        } catch (\PDOException) {
+            $stmt = Connection::get()->prepare(
+                'UPDATE users SET password = ? WHERE id = ?'
+            );
+            $stmt->execute([$newPasswordHash, $userId]);
+        }
+
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Update only the contact email for an employee (self-service).
+     */
+    public function updateEmailById(int $userId, string $email): ?User
+    {
+        $stmt = Connection::get()->prepare('UPDATE users SET email = ? WHERE id = ?');
+        $stmt->execute([trim($email), $userId]);
+
+        return $this->findById($userId);
+    }
+
     private function generateRfidUid(string $employeeId): string
     {
         // Preserve the same synthetic-rfid strategy the frontend already used:
@@ -194,10 +276,27 @@ class UserRepository
 
     private function baseQuery(): string
     {
+        // Do not select must_change_password here so login never breaks
+        // before the migration is applied. The flag is loaded in hydrate().
         return 'SELECT u.id, u.employee_id, u.rfid_uid, '
             . 'CONCAT_WS(\' \', u.first_name, u.last_name) AS name, '
             . 'u.email, u.password, u.role, u.department, u.position, u.status '
             . 'FROM users u';
+    }
+
+    private function fetchMustChangePassword(int $userId): bool
+    {
+        try {
+            $stmt = Connection::get()->prepare(
+                'SELECT must_change_password FROM users WHERE id = ? LIMIT 1'
+            );
+            $stmt->execute([$userId]);
+            $value = $stmt->fetchColumn();
+
+            return $value !== false && (bool) $value;
+        } catch (\PDOException) {
+            return false;
+        }
     }
 
     // Resolves the employee's annual leave balance from the leave_balances
@@ -244,6 +343,7 @@ class UserRepository
             position: $row['position'] ?? null,
             status: $row['status'] ?? 'OUT',
             annualLeaveBalance: $this->fetchLeaveBalance((int) $row['id'], (string) $row['employee_id']),
+            mustChangePassword: $this->fetchMustChangePassword((int) $row['id']),
         );
     }
 }

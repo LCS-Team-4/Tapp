@@ -186,7 +186,7 @@ function generateRandomPassword(length = 12) {
 
 // ---- Employees: directory, search/filter, register/edit/delete ----
 
-// employee_id format is EMP-#### — take the highest existing number
+// employee_id format is S-### — take the highest existing number
 // (across all rows, not just visible ones, so filtering doesn't skip IDs)
 // and increment it, rather than anything random.
 function nextEmployeeId(tbody) {
@@ -195,7 +195,7 @@ function nextEmployeeId(tbody) {
     const n = Number((row.dataset.id || '').split('-')[1]);
     if (Number.isFinite(n) && n > max) max = n;
   });
-  return `EMP-${String(max + 1).padStart(4, '0')}`;
+  return `S-${String(max + 1).padStart(3, '0')}`;
 }
 
 function initialsOf(name) {
@@ -540,10 +540,77 @@ function postForm(action, fields) {
   form.submit();
 }
 
-// ---- Leave management: approve/decline ----
+// ---- Leave management: approve/decline + live refresh ----
 // Each decision now calls the backend API at /api/admin/leave-requests/{id}
-// instead of the legacy actions/leave_decision.php endpoint.
+// instead of the legacy actions/leave_decision.php endpoint. After a decision
+// (or via the refresh button / auto-polling) the pending + history lists are
+// re-rendered from the live dashboard API instead of reloading the page.
 const API_ROOT = '../../backend/public';
+
+const LEAVE_TYPE_LABELS = {
+  annual: 'Annual Leave',
+  sick: 'Sick Leave',
+  unpaid: 'Unpaid Leave',
+  emergency: 'Emergency Leave',
+  other: 'Other Leave',
+  leave: 'Leave',
+};
+const LEAVE_STROKES = ['#D2A7A7', '#6C714F', '#6D382B'];
+
+function leaveTypeLabel(type) {
+  return LEAVE_TYPE_LABELS[type] || LEAVE_TYPE_LABELS.other || type || 'Leave';
+}
+
+function dayLabel(days) {
+  const n = Number(days || 0);
+  return `${n} day${n === 1 ? '' : 's'}`;
+}
+
+function leaveIcon(i) {
+  return i % 3 === 2
+    ? '<path d="M12 3v6M12 21c-5-2-8-6-8-11 3 0 6 1.5 8 5 2-3.5 5-5 8-5 0 5-3 9-8 11Z"/>'
+    : '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>';
+}
+
+// Mirrors the card markup PHP-rendered in portal.php so a live refresh
+// produces cards visually identical to the initial page render.
+function pendingCardHTML(req, i) {
+  return `
+    <div class="leave-req-card" data-leave-id="${escapeHtml(req.leave_id)}" data-employee-name="${escapeHtml(req.employee_name)}" data-leave-type-label="${escapeHtml(leaveTypeLabel(req.leave_type))}" data-duration-days="${Number(req.duration_days || 0)}" data-reason="${escapeHtml(req.reason)}" data-status="pending" data-decided-at="">
+      <div class="lr-main">
+        <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${LEAVE_STROKES[i % 3]}" stroke-width="1.8">${leaveIcon(i)}</svg></div>
+        <div>
+          <div class="lr-title">${escapeHtml(req.employee_name)} — ${escapeHtml(leaveTypeLabel(req.leave_type))}</div>
+          <div class="lr-sub">${escapeHtml(dayLabel(req.duration_days))} · ${escapeHtml(req.reason)}</div>
+        </div>
+      </div>
+      <div class="leave-req-actions">
+        <span class="badge badge-pending" style="margin-right:6px;">Pending</span>
+        <button class="btn btn-olive btn-sm" data-decision="approved" type="button">Approve</button>
+        <button class="btn btn-rust btn-sm" data-decision="declined" type="button">Decline</button>
+      </div>
+    </div>
+  `;
+}
+
+function historyCardHTML(req, i) {
+  const status = req.status === 'approved' ? 'approved' : 'declined';
+  const label = status === 'approved' ? 'Approved' : 'Declined';
+  return `
+    <div class="leave-req-card" data-leave-id="${escapeHtml(req.leave_id)}" data-employee-name="${escapeHtml(req.employee_name)}" data-leave-type-label="${escapeHtml(leaveTypeLabel(req.leave_type))}" data-duration-days="${Number(req.duration_days || 0)}" data-reason="${escapeHtml(req.reason)}" data-status="${escapeHtml(status)}" data-decided-at="${escapeHtml(req.decided_at)}">
+      <div class="lr-main">
+        <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${LEAVE_STROKES[i % 3]}" stroke-width="1.8">${leaveIcon(i)}</svg></div>
+        <div>
+          <div class="lr-title">${escapeHtml(req.employee_name)} — ${escapeHtml(leaveTypeLabel(req.leave_type))}</div>
+          <div class="lr-sub">${escapeHtml(dayLabel(req.duration_days))} · ${escapeHtml(req.reason)} · Decided ${escapeHtml(req.decided_at)}</div>
+        </div>
+      </div>
+      <div class="leave-req-actions">
+        <span class="badge badge-${escapeHtml(status)}">${escapeHtml(label)}</span>
+      </div>
+    </div>
+  `;
+}
 
 async function decideLeave(leaveId, decision) {
   return fetch(`${API_ROOT}/api/admin/leave-requests/${encodeURIComponent(leaveId)}`, {
@@ -554,26 +621,290 @@ async function decideLeave(leaveId, decision) {
   });
 }
 
+// ---- Live dashboard rendering (SSE + polling fallback) ----
+// Mirrors the PHP helpers in admin/data.php so re-rendered markup matches
+// the initial server-side render exactly.
+
+const FEED_DOT_COLORS = {
+  clock_in: '#9aa574',
+  clock_out: '#d2a7a7',
+  leave_applied: '#d3ac77',
+  leave_decided: '#9aa574',
+};
+const FEED_TEXTS = {
+  clock_in: 'clocked in',
+  clock_out: 'clocked out',
+  leave_applied: 'applied for leave',
+  leave_decided: 'had a leave request decided',
+};
+
+function feedDotColor(type) {
+  return FEED_DOT_COLORS[type] || '#cdb9ab';
+}
+function feedText(type) {
+  return FEED_TEXTS[type] || type || '';
+}
+
+function attendanceBadge(status, isLate) {
+  const map = {
+    present: ['badge-offsite', 'Offsite'],
+    offsite: ['badge-offsite', 'Offsite'],
+    onsite: ['badge-onsite', 'Onsite'],
+    absent: ['badge-absent', 'Absent'],
+  };
+  const [cls, label] = map[status] || map.offsite;
+  return { class: cls, label };
+}
+
+function employeeBadge(status) {
+  const map = {
+    onsite: ['badge-onsite', 'Onsite'],
+    present: ['badge-offsite', 'Offsite'],
+    offsite: ['badge-offsite', 'Offsite'],
+    absent: ['badge-absent', 'Absent'],
+  };
+  const [cls, label] = map[status] || map.offsite;
+  return { class: cls, label };
+}
+
+function initialsOfName(name) {
+  const parts = String(name || '').trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
+}
+
+function renderStats(stats) {
+  const s = stats || {};
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(val ?? 0);
+  };
+  set('stat-onsite', s.employees_onsite);
+  set('stat-checked-in', s.checked_in_today);
+  set('stat-late', s.late_arrivals);
+  set('stat-absent', s.employees_absent);
+  set('bloom-rate', `${s.on_time_rate_pct ?? 0}%`);
+  set('bloom-onsite', s.employees_onsite);
+  set('bloom-late', s.late_arrivals);
+  set('bloom-absent', s.employees_absent);
+}
+
+function renderLiveFeed(feed) {
+  const list = document.getElementById('live-feed-list');
+  if (!list) return;
+  const items = feed || [];
+  if (!items.length) {
+    list.innerHTML = '<p class="muted" style="padding:12px 0;">No activity yet today.</p>';
+    return;
+  }
+  list.innerHTML = items.map((item) => `
+    <div class="feed-item">
+      <span class="feed-time">${escapeHtml(item.time_label)}</span>
+      <span class="feed-dot" style="background:${feedDotColor(item.event_type)};"></span>
+      <span class="feed-text"><b>${escapeHtml(item.employee_name)}</b> ${escapeHtml(feedText(item.event_type))}</span>
+    </div>
+  `).join('');
+}
+
+function renderLateArrivals(lateList) {
+  const wrap = document.getElementById('late-arrivals-list');
+  if (!wrap) return;
+  const late = lateList || [];
+  if (!late.length) {
+    wrap.innerHTML = '<p class="muted" style="padding:12px 0;">No late arrivals today. 🎉</p>';
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Employee</th><th>Clock In</th><th>Minutes Late</th></tr></thead>
+        <tbody>
+          ${late.map((row) => `
+            <tr>
+              <td><div class="emp-cell"><div class="avatar">${escapeHtml(initialsOfName(row.name))}</div><div class="emp-name">${escapeHtml(row.name)}</div></div></td>
+              <td>${escapeHtml(row.clock_in)}</td>
+              <td><span class="badge badge-late">${Number(row.minutes_late || 0)} min</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAttendanceTable(attendance) {
+  const tbody = document.getElementById('attendance-tbody');
+  if (!tbody) return;
+  const rows = attendance || [];
+  tbody.innerHTML = rows.map((entry) => {
+    const badge = attendanceBadge(entry.status, entry.is_late);
+    return `
+      <tr data-name="${escapeHtml(entry.name)}">
+        <td><div class="emp-cell"><div class="avatar">${escapeHtml(entry.initials)}</div><div class="emp-name">${escapeHtml(entry.name)}</div></div></td>
+        <td>${escapeHtml(entry.clock_in ?? '—')}</td>
+        <td>${escapeHtml(entry.clock_out ?? '—')}</td>
+        <td>${escapeHtml(entry.total_hours ?? '—')}</td>
+        <td><span class="badge ${badge.class}">${escapeHtml(badge.label)}</span></td>
+      </tr>
+    `;
+  }).join('');
+
+  // Re-apply the attendance search filter after re-render.
+  const searchEl = document.getElementById('attendance-search');
+  if (searchEl && searchEl.value.trim()) {
+    const query = searchEl.value.trim().toLowerCase();
+    tbody.querySelectorAll('tr[data-name]').forEach((row) => {
+      row.style.display = (row.dataset.name || '').toLowerCase().includes(query) ? '' : 'none';
+    });
+  }
+}
+
+function renderEmployeeStatuses(employees) {
+  const tbody = document.getElementById('employee-tbody');
+  if (!tbody) return;
+  const emps = employees || [];
+  emps.forEach((emp) => {
+    const row = tbody.querySelector(`tr[data-id="${CSS.escape(emp.employee_id)}"]`);
+    if (!row) return;
+    const badge = employeeBadge(emp.today_attendance_status);
+    const cell = row.children[4];
+    if (cell) {
+      cell.innerHTML = `<span class="badge ${badge.class}">${escapeHtml(badge.label)}</span>`;
+    }
+  });
+}
+
+// Fetches the same dashboard endpoint portal.php uses for its initial data,
+// and re-renders every dynamic section (stats, feed, bloom, late arrivals,
+// attendance table, employee statuses, leave lists).
+async function refreshDashboard() {
+  const refreshBtn = document.getElementById('btn-refresh-leave');
+  try {
+    if (refreshBtn) refreshBtn.disabled = true;
+    const response = await fetch(`${API_ROOT}/api/admin/dashboard`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error?.message || 'Unable to refresh dashboard');
+    }
+    const body = await response.json();
+    renderDashboard(body.data || {});
+  } catch (error) {
+    console.error('Dashboard refresh error:', error);
+  } finally {
+    if (refreshBtn) refreshBtn.disabled = false;
+  }
+}
+
+function renderDashboard(data) {
+  renderStats(data.dashboard_stats);
+  renderLiveFeed(data.live_feed);
+  renderLateArrivals(data.late_arrivals_list);
+  renderAttendanceTable(data.attendance_monitoring);
+  renderEmployeeStatuses(data.employees);
+  renderLeaveLists(data);
+}
+
+function renderLeaveLists(data) {
+  const pendingList = document.getElementById('leave-list');
+  const historyList = document.getElementById('leave-history-list');
+  const pendingCount = document.getElementById('leave-pending-count');
+  const historyCount = document.getElementById('leave-history-count');
+
+  const pending = data.pending_leave_requests || [];
+  const history = data.leave_history || [];
+
+  if (pendingList) {
+    pendingList.innerHTML = pending.map((req, i) => pendingCardHTML(req, i)).join('');
+  }
+  if (historyList) {
+    historyList.innerHTML = history.map((req, i) => historyCardHTML(req, i)).join('');
+  }
+  if (pendingCount) {
+    pendingCount.textContent = `${pending.length} awaiting review`;
+  }
+  if (historyCount) {
+    historyCount.textContent = `${history.length} decided`;
+  }
+}
+
+let leavePollingTimer = null;
+let leaveEventSource = null;
+
+// Server-Sent Events (SSE): keep a long-lived connection to the PHP endpoint
+// that streams "update" events whenever anything on the dashboard changes
+// (clock in/out, leave requests, late arrivals, employee presence). The
+// browser's EventSource is built-in — no packages. EventSource auto-reconnects
+// when the server ends the stream (the PHP side caps each connection at
+// ~25s), so this is effectively continuous with ~2-3s of latency at most.
+function startLeavePolling(intervalMs = 30000) {
+  const panel = document.getElementById('a-leave');
+  if (!panel) return;
+
+  // SSE stream (primary, near-instant updates). Relative to the admin portal
+  // page, which lives in the same /admin/ directory as this endpoint.
+  const url = 'stream_updates.php';
+  try {
+    leaveEventSource = new EventSource(url);
+    leaveEventSource.addEventListener('update', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        renderDashboard(data);
+      } catch (e) {
+        console.error('Bad SSE update payload:', e);
+      }
+    });
+    leaveEventSource.onerror = () => {
+      // EventSource reconnects automatically; just log it. The polling
+      // fallback below covers any gap while it's disconnected.
+      console.warn('SSE connection lost — will auto-reconnect.');
+    };
+  } catch (e) {
+    console.error('SSE init failed:', e);
+  }
+
+  // Polling fallback (safety net, less frequent now that SSE is primary).
+  if (leavePollingTimer) clearInterval(leavePollingTimer);
+  leavePollingTimer = setInterval(() => {
+    // Only poll while the page is visible to avoid needless background work.
+    if (!document.hidden && document.getElementById('a-leave')) {
+      refreshDashboard();
+    }
+  }, intervalMs);
+}
+
 function wireLeave() {
   const panel = document.getElementById('a-leave');
   if (!panel) return;
-  const list = panel.querySelector('#leave-list');
-  if (!list) return;
 
-  list.querySelectorAll('[data-decision]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const card = btn.closest('.leave-req-card');
+  // Event delegation so approve/decline stays wired after the cards are
+  // re-rendered by refreshLeaveData().
+  panel.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-decision]');
+    if (!btn) return;
+    const card = btn.closest('.leave-req-card');
+    if (!card) return;
+
+    btn.disabled = true;
+    try {
       const response = await decideLeave(card.dataset.leaveId, btn.dataset.decision);
       const data = await response.json().catch(() => ({ message: 'Unable to update leave request' }));
-
       if (!response.ok) {
         alert(data.message || 'Unable to update leave request');
+        btn.disabled = false;
         return;
       }
-
-      window.location.reload();
-    });
+      // Update the whole dashboard live instead of reloading the page.
+      await refreshDashboard();
+    } catch (error) {
+      alert(error.message || 'Unable to update leave request');
+      btn.disabled = false;
+    }
   });
+
+  // Manual refresh button in the Pending Requests card header.
+  const refreshBtn = document.getElementById('btn-refresh-leave');
+  refreshBtn?.addEventListener('click', refreshDashboard);
 }
 
 // ---- Reports: tile selection + CSV/PDF export ----
@@ -899,7 +1230,6 @@ function wireAdminInvite() {
   if (!inviteBtn || !modal) return;
 
   const nameEl = modal.querySelector('#invite-admin-name');
-  const idEl = modal.querySelector('#invite-admin-employee-id');
   const emailEl = modal.querySelector('#invite-admin-email');
   const passEl = modal.querySelector('#invite-admin-password');
   const passConfirmEl = modal.querySelector('#invite-admin-password-confirm');
@@ -912,18 +1242,16 @@ function wireAdminInvite() {
 
   function validate() {
     const name = nameEl.value.trim();
-    const empId = idEl.value.trim();
     const email = emailEl.value.trim();
     const pass = passEl.value;
     const passc = passConfirmEl.value;
-    const ok = name && empId && email && pass && pass === passc;
+    const ok = name && email && pass && pass === passc;
     errorEl.style.display = ok ? 'none' : 'block';
     return ok;
   }
 
   inviteBtn.addEventListener('click', () => {
     nameEl.value = '';
-    idEl.value = '';
     emailEl.value = '';
     passEl.value = '';
     passConfirmEl.value = '';
@@ -933,14 +1261,161 @@ function wireAdminInvite() {
 
   cancelBtn.addEventListener('click', () => close());
 
-  createBtn.addEventListener('click', () => {
+  createBtn.addEventListener('click', async () => {
     if (!validate()) return;
-    postForm('admin/actions/create_admin.php', {
-      name: nameEl.value.trim(),
-      employee_id: idEl.value.trim(),
-      email: emailEl.value.trim(),
-      password: passEl.value,
-      password_confirm: passConfirmEl.value,
+
+    createBtn.disabled = true;
+    try {
+      const response = await fetch(`${API_ROOT}/api/admin/admins/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: nameEl.value.trim(),
+          email: emailEl.value.trim(),
+          password: passEl.value,
+          password_confirm: passConfirmEl.value,
+        }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = body.error?.message || 'Unable to create admin account';
+        throw new Error(message);
+      }
+
+      close();
+      // Refresh the admin list if it's rendered.
+      loadAdmins();
+      window.alert('Admin account created successfully.');
+    } catch (error) {
+      errorEl.textContent = error.message;
+      errorEl.style.display = 'block';
+    } finally {
+      createBtn.disabled = false;
+    }
+  });
+}
+
+// ---- Manage Admins: list, promote, demote ----
+// Fetches the current admin list and renders it in the Manage Admins card.
+// Also wires the "Promote to Admin" action for staff users and the
+// "Demote" action for existing admins.
+async function loadAdmins() {
+  const listEl = document.getElementById('admin-list');
+  if (!listEl) return;
+
+  try {
+    const response = await fetch(`${API_ROOT}/api/admin/admins`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error?.message || 'Unable to load admins');
+    }
+    const body = await response.json();
+    const admins = body.data || [];
+
+    if (!admins.length) {
+      listEl.innerHTML = '<p class="muted" style="padding:8px 0;">No admin accounts found.</p>';
+      return;
+    }
+
+    listEl.innerHTML = admins.map((admin) => `
+      <div class="admin-row" data-employee-id="${escapeHtml(admin.employee_id)}">
+        <div class="emp-cell">
+          <div class="avatar">${escapeHtml(admin.initials)}</div>
+          <div>
+            <div class="emp-name">${escapeHtml(admin.name)}</div>
+            <div class="muted" style="font-size:12px;">${escapeHtml(admin.email)}</div>
+          </div>
+        </div>
+        <div class="admin-actions">
+          <span class="badge badge-present">Admin</span>
+          <button class="btn btn-outline btn-sm" data-action="demote" data-id="${escapeHtml(admin.employee_id)}" type="button">Demote</button>
+        </div>
+      </div>
+    `).join('');
+
+    // Wire demote buttons.
+    listEl.querySelectorAll('[data-action="demote"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const name = btn.closest('.admin-row')?.querySelector('.emp-name')?.textContent || id;
+        confirmDialog(`Demote ${name} (${id}) back to staff? They will lose admin access.`, async () => {
+          try {
+            const response = await fetch(
+              `${API_ROOT}/api/admin/admins/demote/${encodeURIComponent(id)}`,
+              {
+                method: 'PUT',
+                credentials: 'include',
+              }
+            );
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              const message = body.error?.message || 'Unable to demote admin';
+              throw new Error(message);
+            }
+            await loadAdmins();
+          } catch (error) {
+            window.alert(error.message);
+          }
+        });
+      });
+    });
+  } catch (error) {
+    listEl.innerHTML = `<p class="muted" style="padding:8px 0;">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+// ---- Promote staff to admin ----
+// Adds a "Promote to Admin" action to the employee table rows so an admin
+// can convert a staff member or newly registered user into an admin.
+function wirePromoteToAdmin() {
+  const tbody = document.getElementById('employee-tbody');
+  if (!tbody) return;
+
+  // Add a promote button to each employee row's action cell.
+  tbody.querySelectorAll('tr[data-id]').forEach((row) => {
+    const actionsCell = row.querySelector('td:last-child');
+    if (!actionsCell) return;
+    if (actionsCell.querySelector('[data-action="promote"]')) return;
+
+    const promoteBtn = document.createElement('button');
+    promoteBtn.className = 'btn-icon';
+    promoteBtn.title = 'Promote to Admin';
+    promoteBtn.dataset.action = 'promote';
+    promoteBtn.dataset.id = row.dataset.id;
+    promoteBtn.type = 'button';
+    promoteBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/><path d="M12 8l1.5 3 3 1.5-3 1.5L12 17l-1.5-3-3-1.5 3-1.5L12 8z"/></svg>';
+    actionsCell.appendChild(promoteBtn);
+
+    promoteBtn.addEventListener('click', () => {
+      const name = row.querySelector('.emp-name')?.textContent || '';
+      const id = row.dataset.id;
+      confirmDialog(`Promote ${name} (${id}) to admin? They will gain access to the admin portal.`, async () => {
+        try {
+          const response = await fetch(
+            `${API_ROOT}/api/admin/admins/promote/${encodeURIComponent(id)}`,
+            {
+              method: 'PUT',
+              credentials: 'include',
+            }
+          );
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            const message = body.error?.message || 'Unable to promote user to admin';
+            throw new Error(message);
+          }
+          // Remove the row from the employee table since they're now an admin.
+          row.remove();
+          // Refresh the admin list.
+          loadAdmins();
+          window.alert(`${name} has been promoted to admin.`);
+        } catch (error) {
+          window.alert(error.message);
+        }
+      });
     });
   });
 }
@@ -948,6 +1423,8 @@ function wireAdminInvite() {
 wireEmployees();
 wireAttendance();
 wireLeave();
+startLeavePolling();
+wirePromoteToAdmin();
 
 // Ensure PDF libraries are loaded before wiring reports
 if (document.readyState === 'loading') {
@@ -955,9 +1432,11 @@ if (document.readyState === 'loading') {
     wireReports();
     wireSettings();
     wireAdminInvite();
+    loadAdmins();
   });
 } else {
   wireReports();
   wireSettings();
   wireAdminInvite();
+  loadAdmins();
 }

@@ -157,6 +157,24 @@ class UserRepository
         return $stmt->rowCount() > 0;
     }
 
+    // Updates a user's role (staff -> admin, admin -> staff, etc.).
+    // Accepts the hosted role vocabulary (staff/manager/admin) and maps it
+    // the same way hydrate() does.
+    public function updateRoleByEmployeeId(string $employeeId, string $role): ?User
+    {
+        $existing = $this->findByEmployeeId($employeeId);
+        if ($existing === null) {
+            return null;
+        }
+
+        $hostedRole = $role === 'admin' ? 'admin' : 'staff';
+
+        $stmt = Connection::get()->prepare('UPDATE users SET role = ? WHERE employee_id = ?');
+        $stmt->execute([$hostedRole, $employeeId]);
+
+        return $this->findByEmployeeId($employeeId);
+    }
+
     private function generateRfidUid(string $employeeId): string
     {
         // Preserve the same synthetic-rfid strategy the frontend already used:

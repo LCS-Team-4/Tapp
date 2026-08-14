@@ -28,16 +28,17 @@ class Logger
 
     private static function write(string $level, string $message): void
     {
-        $path = self::resolvePath();
-        $dir = dirname($path);
+        // Logging is disabled to prevent creation of storage/logs/app.log.
+        // $path = self::resolvePath();
+        // $dir = dirname($path);
 
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0755, true);
-        }
+        // if (!is_dir($dir)) {
+        //     @mkdir($dir, 0755, true);
+        // }
 
-        $line = sprintf('[%s] %s: %s%s', date('Y-m-d H:i:s'), strtoupper($level), $message, PHP_EOL);
+        // $line = sprintf('[%s] %s: %s%s', date('Y-m-d H:i:s'), strtoupper($level), $message, PHP_EOL);
 
-        file_put_contents($path, $line, FILE_APPEND);
+        // file_put_contents($path, $line, FILE_APPEND);
     }
 
     private static function resolvePath(): string

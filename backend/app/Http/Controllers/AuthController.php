@@ -44,8 +44,6 @@ class AuthController
         $email = trim((string) $request->input('email', ''));
         $password = (string) $request->input('password', '');
         $passwordConfirm = (string) $request->input('password_confirm', '');
-        $role = trim((string) $request->input('role', 'employee'));
-        $role = in_array($role, ['employee', 'admin'], true) ? $role : 'employee';
 
         if ($name === '' || $employeeId === '' || $email === '' || $password === '' || $password !== $passwordConfirm) {
             return Response::error('Please fill in all fields and make sure passwords match', 400);
@@ -55,8 +53,11 @@ class AuthController
             return Response::error('That email or employee ID already exists', 409);
         }
 
-        // Hosted role vocabulary: staff/manager/admin. employee -> staff, admin -> admin.
-        $hostedRole = $role === 'admin' ? 'admin' : 'staff';
+        // Public signups always create staff accounts. Admin accounts can
+        // only be created by an existing admin via the admin-only
+        // /api/admin/admins/invite endpoint — never through this public
+        // endpoint. This prevents privilege escalation via the signup form.
+        $hostedRole = 'staff';
 
         // Split name into first/last the same way the old frontend signup did.
         $nameParts = array_values(array_filter(array_map('trim', explode(' ', $name))));

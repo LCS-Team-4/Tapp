@@ -107,22 +107,22 @@ if (is_readable($emailEnvPath)) {
         <div class="grid grid-4" style="margin-bottom:20px;">
           <div class="card stat-card dot-green">
             <div class="stat-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9aa574" stroke-width="1.9"><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/><circle cx="12" cy="8" r="4"/></svg></div>
-            <div class="stat-num"><?= (int) $dashboardStats['employees_onsite'] ?></div>
+            <div class="stat-num" id="stat-onsite"><?= (int) $dashboardStats['employees_onsite'] ?></div>
             <div class="stat-label">Employees Onsite</div>
           </div>
           <div class="card stat-card dot-blue">
             <div class="stat-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#D2A7A7" stroke-width="1.9"><path d="M20 6L9 17l-5-5"/></svg></div>
-            <div class="stat-num"><?= (int) $dashboardStats['checked_in_today'] ?></div>
+            <div class="stat-num" id="stat-checked-in"><?= (int) $dashboardStats['checked_in_today'] ?></div>
             <div class="stat-label">Checked In Today</div>
           </div>
           <div class="card stat-card dot-gold">
             <div class="stat-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#d3ac77" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
-            <div class="stat-num"><?= (int) $dashboardStats['late_arrivals'] ?></div>
+            <div class="stat-num" id="stat-late"><?= (int) $dashboardStats['late_arrivals'] ?></div>
             <div class="stat-label">Late Arrivals</div>
           </div>
           <div class="card stat-card dot-red">
             <div class="stat-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#c26a52" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div>
-            <div class="stat-num"><?= (int) $dashboardStats['employees_absent'] ?></div>
+            <div class="stat-num" id="stat-absent"><?= (int) $dashboardStats['employees_absent'] ?></div>
             <div class="stat-label">Employees Absent</div>
           </div>
         </div>
@@ -130,6 +130,7 @@ if (is_readable($emailEnvPath)) {
         <div class="grid grid-2">
           <div class="card">
             <div class="section-head"><h3>Live Feed</h3><span class="badge badge-present">Live</span></div>
+            <div id="live-feed-list">
             <?php foreach ($liveFeed as $item): ?>
             <div class="feed-item">
               <span class="feed-time"><?= htmlspecialchars($item['time_label']) ?></span>
@@ -137,6 +138,7 @@ if (is_readable($emailEnvPath)) {
               <span class="feed-text"><b><?= htmlspecialchars($item['employee_name']) ?></b> <?= htmlspecialchars(feed_text($item['event_type'])) ?></span>
             </div>
             <?php endforeach; ?>
+            </div>
           </div>
           <div class="card">
             <div class="section-head"><h3>Attendance Bloom</h3></div>
@@ -146,13 +148,13 @@ if (is_readable($emailEnvPath)) {
                 <circle cx="70" cy="70" r="58" fill="none" stroke="#9aa574" stroke-width="14" stroke-dasharray="316" stroke-dashoffset="55" stroke-linecap="round" transform="rotate(-90 70 70)"/>
                 <circle cx="70" cy="70" r="58" fill="none" stroke="#d3ac77" stroke-width="14" stroke-dasharray="316" stroke-dashoffset="270" stroke-linecap="round" transform="rotate(59 70 70)"/>
                 <circle cx="70" cy="70" r="58" fill="none" stroke="#c26a52" stroke-width="14" stroke-dasharray="316" stroke-dashoffset="295" stroke-linecap="round" transform="rotate(97 70 70)"/>
-                <text x="70" y="65" text-anchor="middle" fill="#f3e9de" font-size="24" font-family="Fraunces, serif" font-weight="600"><?= (int) $dashboardStats['on_time_rate_pct'] ?>%</text>
+                <text x="70" y="65" text-anchor="middle" fill="#f3e9de" font-size="24" font-family="Fraunces, serif" font-weight="600" id="bloom-rate"><?= (int) $dashboardStats['on_time_rate_pct'] ?>%</text>
                 <text x="70" y="83" text-anchor="middle" fill="#cdb9ab" font-size="10">on-time rate</text>
               </svg>
               <div class="bloom-legend">
-                <div class="lg-item"><span class="lg-dot" style="background:#9aa574;"></span> Present · <?= (int) $dashboardStats['employees_onsite'] ?></div>
-                <div class="lg-item"><span class="lg-dot" style="background:#d3ac77;"></span> Late · <?= (int) $dashboardStats['late_arrivals'] ?></div>
-                <div class="lg-item"><span class="lg-dot" style="background:#c26a52;"></span> Absent · <?= (int) $dashboardStats['employees_absent'] ?></div>
+                <div class="lg-item"><span class="lg-dot" style="background:#9aa574;"></span> Present · <span id="bloom-onsite"><?= (int) $dashboardStats['employees_onsite'] ?></span></div>
+                <div class="lg-item"><span class="lg-dot" style="background:#d3ac77;"></span> Late · <span id="bloom-late"><?= (int) $dashboardStats['late_arrivals'] ?></span></div>
+                <div class="lg-item"><span class="lg-dot" style="background:#c26a52;"></span> Absent · <span id="bloom-absent"><?= (int) $dashboardStats['employees_absent'] ?></span></div>
               </div>
             </div>
           </div>
@@ -165,6 +167,7 @@ if (is_readable($emailEnvPath)) {
             <h3>Late Arrivals</h3>
             <span class="muted">Working hours start <?= htmlspecialchars($systemSettings['working_hours_start']) ?> · <?= (int) $systemSettings['late_threshold_minutes'] ?> min grace</span>
           </div>
+          <div id="late-arrivals-list">
           <?php if (count($lateArrivalsList) === 0): ?>
             <p class="muted" style="padding:12px 0;">No late arrivals today. 🎉</p>
           <?php else: ?>
@@ -183,6 +186,7 @@ if (is_readable($emailEnvPath)) {
               </table>
             </div>
           <?php endif; ?>
+          </div>
         </div>
       </div>
 
@@ -290,7 +294,15 @@ if (is_readable($emailEnvPath)) {
       <!-- Leave management -->
       <div class="tab-panel" id="a-leave">
         <div class="card">
-          <div class="section-head"><h3>Pending Requests</h3><span class="muted" id="leave-pending-count"><?= count($pendingLeaveRequests) ?> awaiting review</span></div>
+          <div class="section-head">
+            <h3>Pending Requests</h3>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="muted" id="leave-pending-count"><?= count($pendingLeaveRequests) ?> awaiting review</span>
+              <button class="btn-icon" id="btn-refresh-leave" type="button" title="Refresh pending requests" aria-label="Refresh pending requests">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-2.64-6.36M21 3v6h-6"/></svg>
+              </button>
+            </div>
+          </div>
           <div id="leave-list">
             <?php foreach ($pendingLeaveRequests as $i => $req): ?>
             <?php
@@ -414,19 +426,20 @@ if (is_readable($emailEnvPath)) {
         </div>
         <div class="card" style="margin-top:14px;">
           <div class="section-head"><h3>Manage Admins</h3></div>
-          <p class="muted">Create new admin accounts for trusted colleagues.</p>
+          <p class="muted">Create new admin accounts for trusted colleagues, or promote existing staff to admin.</p>
           <div style="margin-top:12px; display:flex; gap:10px;">
             <button class="btn btn-pink" id="btn-open-invite-admin" type="button">Invite Admin</button>
+          </div>
+
+          <div id="admin-list" style="margin-top:16px;">
+            <p class="muted" style="padding:8px 0;">Loading admins…</p>
           </div>
 
           <div class="modal-overlay" id="modal-invite-admin">
             <div class="modal">
               <h3>Invite Admin</h3>
               <div class="form-field"><label>Full Name</label><input type="text" id="invite-admin-name" placeholder="e.g. Jordan Miles"></div>
-              <div class="form-row" style="margin-top:10px;">
-                <div class="form-field"><label>Employee ID</label><input type="text" id="invite-admin-employee-id" placeholder="e.g. ADM-001"></div>
-                <div class="form-field"><label>Email</label><input type="email" id="invite-admin-email" placeholder="admin@tapp.co"></div>
-              </div>
+              <div class="form-field" style="margin-top:10px;"><label>Email</label><input type="email" id="invite-admin-email" placeholder="admin@tapp.co"></div>
               <div class="form-row" style="margin-top:10px;">
                 <div class="form-field"><label>Password</label><input type="password" id="invite-admin-password" placeholder="••••••••"></div>
                 <div class="form-field"><label>Confirm Password</label><input type="password" id="invite-admin-password-confirm" placeholder="••••••••"></div>

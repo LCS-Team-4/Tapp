@@ -7,6 +7,14 @@
 const EYE_ICON = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>';
 const EYE_OFF_ICON = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.22 4.44"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
 
+// Escapes user-typed text before it's interpolated into an innerHTML
+// template — needed since leave reasons / names come from live input.
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
 // ---- Profile sub-tabs (Account / Leave / History) ----
 
 function activateSubtab(container, subtabId) {
@@ -232,8 +240,13 @@ function wireLeaveForm() {
     return valid;
   }
 
-  listEl.querySelectorAll('.leave-req-card').forEach((card) => {
-    card.querySelector('[data-leave-action="cancel"]')?.addEventListener('click', async () => {
+  // Event delegation so edit/cancel stays wired after the cards are
+  // re-rendered by renderLeaveStatusList().
+  listEl.addEventListener('click', async (event) => {
+    const cancelBtn = event.target.closest('[data-leave-action="cancel"]');
+    if (cancelBtn) {
+      const card = cancelBtn.closest('.leave-req-card');
+      if (!card) return;
       if (!confirm('Cancel this leave request?')) return;
 
       const response = await cancelLeaveRequest(card.dataset.leaveId);
@@ -244,10 +257,14 @@ function wireLeaveForm() {
         return;
       }
 
-      window.location.reload();
-    });
+      await refreshEmployeeProfile();
+      return;
+    }
 
-    card.querySelector('[data-leave-action="edit"]')?.addEventListener('click', () => {
+    const editBtn = event.target.closest('[data-leave-action="edit"]');
+    if (editBtn) {
+      const card = editBtn.closest('.leave-req-card');
+      if (!card) return;
       editingId = card.dataset.leaveId;
       typeEl.value = card.dataset.leaveType;
       startEl.value = card.dataset.startDate;
@@ -256,7 +273,7 @@ function wireLeaveForm() {
       reasonEl.value = card.dataset.reason;
       submitBtn.textContent = 'Update Request';
       clearFieldErrors();
-    });
+    }
   });
 
   // Self-service leave requests can't be backdated, and the end date can't
@@ -277,17 +294,30 @@ function wireLeaveForm() {
       reason: reasonEl.value.trim(),
     };
 
+    // Backend errors come back as {"error": {"message": "..."}} — read both
+    // shapes so the real message (e.g. overlapping leave dates) is shown.
+    function errorMessage(data, fallback) {
+      return data?.error?.message || data?.message || fallback;
+    }
+
     if (editingId !== null) {
       const response = await updateLeaveRequest(editingId, fields);
       const data = await response.json().catch(() => ({ message: 'Unexpected response from server' }));
 
       if (!response.ok) {
-        errorEl.textContent = data.message || 'Unable to update leave request';
+        errorEl.textContent = errorMessage(data, 'Unable to update leave request');
         errorEl.style.display = 'block';
         return;
       }
 
-      window.location.reload();
+      editingId = null;
+      submitBtn.textContent = 'Submit Request';
+      typeEl.selectedIndex = 0;
+      startEl.value = '';
+      endEl.value = '';
+      endEl.min = initialMin;
+      reasonEl.value = '';
+      await refreshEmployeeProfile();
       return;
     }
 
@@ -295,12 +325,17 @@ function wireLeaveForm() {
     const data = await response.json().catch(() => ({ message: 'Unexpected response from server' }));
 
     if (!response.ok) {
-      errorEl.textContent = data.message || 'Unable to submit leave request';
+      errorEl.textContent = errorMessage(data, 'Unable to submit leave request');
       errorEl.style.display = 'block';
       return;
     }
 
-    window.location.reload();
+    typeEl.selectedIndex = 0;
+    startEl.value = '';
+    endEl.value = '';
+    endEl.min = initialMin;
+    reasonEl.value = '';
+    await refreshEmployeeProfile();
   });
 }
 
@@ -350,6 +385,224 @@ function wireHistory() {
   statusEl.addEventListener('change', applyFilters);
 }
 
+// ---- Live profile rendering (SSE + polling fallback) ----
+// Mirrors the PHP helpers in employee/data.php so re-rendered markup matches
+// the initial server-side render exactly.
+
+const LEAVE_TYPE_OPTIONS = [
+  { value: 'annual',    label: 'Annual Leave' },
+  { value: 'sick',      label: 'Sick Leave' },
+  { value: 'stu_leave', label: 'Study Leave' },
+  { value: 'fr_leave',  label: 'Family Responsibility Leave' },
+  { value: 'unpaid',    label: 'Unpaid Leave' },
+  { value: 'emergency', label: 'Emergency Leave' },
+  { value: 'other',     label: 'Other Leave' },
+  { value: 'leave',     label: 'Leave' },
+];
+
+function leaveTypeLabel(value) {
+  const opt = LEAVE_TYPE_OPTIONS.find((o) => o.value === value);
+  return opt ? opt.label : value || '';
+}
+
+function formatDateRange(startDate, endDate) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const [sy, sm, sd] = String(startDate || '').split('-').map(Number);
+  const [ey, em, ed] = String(endDate || '').split('-').map(Number);
+  if (!sy || !ey) return '';
+  if (startDate === endDate) return `${sd} ${months[sm - 1]}`;
+  if (sy === ey && sm === em) return `${sd} – ${ed} ${months[sm - 1]}`;
+  return `${sd} ${months[sm - 1]} – ${ed} ${months[em - 1]}`;
+}
+
+function renderEmployeeDashboard(data) {
+  const today = data.today_status || {};
+
+  // Today's status card
+  const statusBadge = document.getElementById('today-status-badge');
+  if (statusBadge) {
+    statusBadge.className = `badge badge-${today.status || 'absent'}`;
+    statusBadge.textContent = today.status === 'onsite' ? 'Clocked In'
+      : today.status === 'present' ? 'Clocked Out'
+      : today.status === 'late' ? 'Clocked In'
+      : 'Not Clocked In';
+  }
+  const clockedIn = document.getElementById('today-clocked-in');
+  if (clockedIn) clockedIn.textContent = today.clock_in || '—';
+
+  // Week hours
+  const weekHours = document.getElementById('week-hours');
+  if (weekHours) weekHours.textContent = today.week_hours_logged ?? 0;
+  const weekTarget = document.getElementById('week-hours-target');
+  if (weekTarget) weekTarget.textContent = today.week_hours_target ?? 40;
+
+  // Leave balances
+  const balances = data.leave_balances || { annual_leave: data.leave_balance ?? 0 };
+  const setBal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(val ?? 0);
+  };
+  setBal('bal-annual', balances.annual_leave);
+  setBal('bal-sick', balances.sick_leave);
+  setBal('bal-stu', balances.stu_leave);
+  setBal('bal-fr', balances.fr_leave);
+
+  // Pending leave card
+  const pendingWrap = document.getElementById('pending-leave-wrap');
+  if (pendingWrap) {
+    const pending = (data.leave_requests || []).find((r) => r.status === 'pending');
+    if (pending) {
+      pendingWrap.innerHTML = `
+        <div class="leave-req-card" style="margin-bottom:0;">
+          <div class="lr-main">
+            <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D2A7A7" stroke-width="1.8"><path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/></svg></div>
+            <div>
+              <div class="lr-title">${escapeHtml(leaveTypeLabel(pending.leave_type))}</div>
+              <div class="lr-sub">${escapeHtml(formatDateRange(pending.start_date, pending.end_date))} · ${escapeHtml(pending.reason)}</div>
+            </div>
+          </div>
+          <span class="badge badge-pending">Pending</span>
+        </div>
+      `;
+    } else {
+      pendingWrap.innerHTML = '<p class="muted">No pending leave requests.</p>';
+    }
+  }
+
+  // Attendance tab: clock badge + stat cards
+  const clockBadge = document.getElementById('clock-badge');
+  if (clockBadge) {
+    clockBadge.className = `badge badge-${today.status || 'absent'}`;
+    clockBadge.textContent = today.status === 'onsite' ? 'Clocked In'
+      : today.status === 'present' ? 'Clocked Out'
+      : today.status === 'late' ? 'Clocked In'
+      : 'Not Clocked In';
+  }
+  const statClockIn = document.getElementById('stat-clock-in');
+  if (statClockIn) statClockIn.textContent = today.clock_in || '—';
+  const statClockOut = document.getElementById('stat-clock-out');
+  if (statClockOut) statClockOut.textContent = today.clock_out || '—';
+  const statTotalHours = document.getElementById('stat-total-hours');
+  if (statTotalHours) statTotalHours.textContent = today.total_hours !== null && today.total_hours !== undefined ? today.total_hours : 'In progress';
+
+  // Leave status list (Profile → Leave sub-tab)
+  renderLeaveStatusList(data.leave_requests || []);
+
+  // History table (Profile → History sub-tab)
+  renderHistoryTable(data.attendance_history || []);
+}
+
+function renderLeaveStatusList(requests) {
+  const list = document.getElementById('leave-status-list');
+  if (!list) return;
+  if (!requests.length) {
+    list.innerHTML = '<p class="muted">No leave requests yet.</p>';
+    return;
+  }
+  list.innerHTML = requests.map((req) => {
+    const stroke = req.status === 'approved' ? '#6C714F' : (req.status === 'declined' ? '#6D382B' : '#D2A7A7');
+    const iconPath = req.status === 'declined'
+      ? '<path d="M12 3v6M12 21c-5-2-8-6-8-11 3 0 6 1.5 8 5 2-3.5 5-5 8-5 0 5-3 9-8 11Z"/>'
+      : '<path d="M4 20 C4 12 8 5 14 3 C16 9 15 16 4 20Z"/>';
+    const actions = req.status === 'pending'
+      ? `
+        <button class="btn-icon" data-leave-action="edit" data-id="${Number(req.leave_id)}" title="Edit request" aria-label="Edit request" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg>
+        </button>
+        <button class="btn-icon" data-leave-action="cancel" data-id="${Number(req.leave_id)}" title="Cancel request" aria-label="Cancel request" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>
+        </button>
+      `
+      : '';
+    return `
+      <div class="leave-req-card" data-leave-id="${Number(req.leave_id)}" data-leave-type="${escapeHtml(req.leave_type)}" data-start-date="${escapeHtml(req.start_date)}" data-end-date="${escapeHtml(req.end_date)}" data-reason="${escapeHtml(req.reason)}">
+        <div class="lr-main">
+          <div class="lr-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.8">${iconPath}</svg></div>
+          <div>
+            <div class="lr-title">${escapeHtml(leaveTypeLabel(req.leave_type))}</div>
+            <div class="lr-sub">${escapeHtml(formatDateRange(req.start_date, req.end_date))} · ${escapeHtml(req.reason)}</div>
+          </div>
+        </div>
+        <div class="leave-req-actions">
+          <span class="badge badge-${escapeHtml(req.status)}">${escapeHtml(req.status.charAt(0).toUpperCase() + req.status.slice(1))}</span>
+          ${actions}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderHistoryTable(history) {
+  const tbody = document.getElementById('history-tbody');
+  if (!tbody) return;
+  const rows = history || [];
+  tbody.innerHTML = rows.map((row) => `
+    <tr data-status="${escapeHtml(row.status)}" data-date-label="${escapeHtml(row.date_label)}">
+      <td>${escapeHtml(row.date_label)}</td>
+      <td>${escapeHtml(row.clock_in ?? '—')}</td>
+      <td>${escapeHtml(row.clock_out ?? '—')}</td>
+      <td>${escapeHtml(row.total_hours ?? '—')}</td>
+      <td><span class="badge badge-${escapeHtml(row.status)}">${escapeHtml(row.status.charAt(0).toUpperCase() + row.status.slice(1))}</span></td>
+    </tr>
+  `).join('');
+
+  // Re-use the established filter handler after re-render so the current
+  // search, selected status, and no-results row remain correct.
+  const searchEl = document.getElementById('history-search');
+  if (searchEl) searchEl.dispatchEvent(new Event('input'));
+}
+
+// Fetches the same /users/profile endpoint portal.php uses for its initial
+// data, and re-renders every dynamic section.
+async function refreshEmployeeProfile() {
+  try {
+    const response = await fetch(`${API_ROOT}/api/users/profile`, {
+      credentials: 'include',
+    });
+    if (!response.ok) return;
+    const body = await response.json();
+    renderEmployeeDashboard(body.data || {});
+  } catch (error) {
+    console.error('Employee profile refresh error:', error);
+  }
+}
+
+let employeePollingTimer = null;
+let employeeEventSource = null;
+
+// Server-Sent Events (SSE): keep a long-lived connection to the PHP endpoint
+// that streams "update" events whenever the user's profile data changes
+// (clock in/out, leave status, balances, history). EventSource is built-in —
+// no packages. It auto-reconnects when the server ends the stream (~25s cap),
+// so this is effectively continuous with ~2-3s of latency at most.
+function startEmployeeLiveUpdates(intervalMs = 30000) {
+  const url = 'stream_updates.php';
+  try {
+    employeeEventSource = new EventSource(url);
+    employeeEventSource.addEventListener('update', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        renderEmployeeDashboard(data);
+      } catch (e) {
+        console.error('Bad SSE update payload:', e);
+      }
+    });
+    employeeEventSource.onerror = () => {
+      console.warn('SSE connection lost — will auto-reconnect.');
+    };
+  } catch (e) {
+    console.error('SSE init failed:', e);
+  }
+
+  // Polling fallback (safety net, less frequent now that SSE is primary).
+  if (employeePollingTimer) clearInterval(employeePollingTimer);
+  employeePollingTimer = setInterval(() => {
+    if (!document.hidden) {
+      refreshEmployeeProfile();
+    }
+  }, intervalMs);
+}
+
 wireProfileSubtabs();
 wireDashboardDeepLinks();
 startLiveClock();
@@ -358,3 +611,4 @@ wirePasswordForm();
 wirePasswordToggles();
 wireLeaveForm();
 wireHistory();
+startEmployeeLiveUpdates();

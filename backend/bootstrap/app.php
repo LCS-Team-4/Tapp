@@ -68,7 +68,7 @@ if ($envPath === null) {
     Env::load($envPath);
 }
 
-Logger::configure(__DIR__ . '/../' . Env::get('LOG_PATH', 'storage/logs/app.log'));
+// Logger::configure(__DIR__ . '/../' . Env::get('LOG_PATH', 'storage/logs/app.log'));
 
 date_default_timezone_set((string) config('app.timezone', 'UTC'));
 

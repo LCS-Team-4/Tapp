@@ -43,6 +43,7 @@ class UsersController
 
         $leaveRepo = new \App\Repositories\LeaveRepository();
         $leaveRequests = $leaveRepo->listForUser((int) $user['id'], (string) $user['role']);
+        $leaveBalances = $leaveRepo->getLeaveBalances((string) $user['employee_id']);
 
         return Response::json([
             'current_user' => $user,
@@ -50,6 +51,7 @@ class UsersController
             'attendance_history' => $history,
             'leave_requests' => array_map([$this, 'shapeLeave'], $leaveRequests),
             'leave_balance' => $user['annual_leave_balance'] ?? 0,
+            'leave_balances' => $leaveBalances,
         ]);
     }
 

@@ -12,6 +12,13 @@ foreach ($leaveRequests as $req) {
     }
 }
 $firstName = explode(' ', $user['name'])[0];
+$clockStatusLabels = [
+    'onsite' => 'Clocked In',
+    'present' => 'Clocked Out',
+    'absent' => 'Not Clocked In',
+    'late' => 'Clocked In',
+];
+$clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((string) $todayStatus['status']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -94,9 +101,26 @@ $firstName = explode(' ', $user['name'])[0];
             <p class="muted" style="margin-top:6px;">of <?= htmlspecialchars($todayStatus['week_hours_target']) ?> hr target</p>
           </div>
           <div class="card">
-            <div class="sub">Leave Balance</div>
-            <div class="stat-num" style="font-size:26px;"><?= htmlspecialchars($leaveBalance['annual_leave_balance']) ?> <span style="font-size:14px; color:var(--cream-dim); font-weight:600;">days</span></div>
-            <p class="muted" style="margin-top:6px;">annual leave remaining</p>
+            <div class="sub">Leave Balances</div>
+            <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
+              <div style="text-align:center;">
+                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['annual_leave'] ?></div>
+                <div class="muted" style="font-size:12px;">Annual</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['sick_leave'] ?></div>
+                <div class="muted" style="font-size:12px;">Sick</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['stu_leave'] ?></div>
+                <div class="muted" style="font-size:12px;">Study</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="stat-num" style="font-size:22px;"><?= (int) $leaveBalances['fr_leave'] ?></div>
+                <div class="muted" style="font-size:12px;">Family Resp.</div>
+              </div>
+            </div>
+            <p class="muted" style="margin-top:8px;">days remaining per leave type</p>
           </div>
         </div>
 
@@ -104,7 +128,7 @@ $firstName = explode(' ', $user['name'])[0];
           <div class="card">
             <div class="section-head"><h3>Quick Actions</h3></div>
             <div style="display:flex; gap:14px; flex-wrap:wrap;">
-              <button class="btn btn-pink" data-goto="e-attendance" type="button">Clock In / Out</button>
+              <button class="btn btn-pink" data-goto="e-attendance" type="button">View Attendance</button>
               <button class="btn btn-outline" data-goto="e-profile" data-subtab="leave" type="button">Apply for Leave</button>
               <button class="btn btn-outline" data-goto="e-profile" data-subtab="history" type="button">View History</button>
               <button class="btn btn-outline" data-goto="e-profile" type="button">Edit Profile</button>
@@ -136,20 +160,16 @@ $firstName = explode(' ', $user['name'])[0];
           <div class="clock-hero">
             <div>
               <div class="eyebrow">Live Clock</div>
-              <div class="clock-time" id="live-clock"><?= htmlspecialchars($todayStatus['clock_in']) ?></div>
+              <div class="clock-time" id="live-clock"><?= date('h:i:s A') ?></div>
               <div class="clock-sub" id="live-clock-date"></div>
             </div>
             <div class="clock-status">
-              <span class="badge badge-<?= htmlspecialchars($todayStatus['status']) ?>" id="clock-badge">Clocked In</span>
-            </div>
-            <div class="clock-actions">
-              <button class="btn btn-outline btn-sm" id="btn-clockin" type="button">Clock In</button>
-              <button class="btn btn-pink btn-sm" id="btn-clockout" type="button">Clock Out</button>
+              <span class="badge badge-<?= htmlspecialchars($todayStatus['status']) ?>" id="clock-badge"><?= htmlspecialchars($clockStatusLabel) ?></span>
             </div>
           </div>
         </div>
         <div class="grid grid-3">
-          <div class="card"><div class="sub">Clock In Time</div><h3 style="font-size:22px;" id="stat-clock-in"><?= htmlspecialchars($todayStatus['clock_in']) ?></h3></div>
+          <div class="card"><div class="sub">Clock In Time</div><h3 style="font-size:22px;" id="stat-clock-in"><?= htmlspecialchars($todayStatus['clock_in'] ?? '—') ?></h3></div>
           <div class="card"><div class="sub">Clock Out Time</div><h3 style="font-size:22px;" id="stat-clock-out"><?= htmlspecialchars($todayStatus['clock_out'] ?? '—') ?></h3></div>
           <div class="card"><div class="sub">Total Hours Today</div><h3 style="font-size:22px;" id="stat-total-hours"><?= htmlspecialchars($todayStatus['total_hours'] !== null ? $todayStatus['total_hours'] : 'In progress') ?></h3></div>
         </div>

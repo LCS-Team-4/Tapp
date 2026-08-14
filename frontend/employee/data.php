@@ -44,6 +44,14 @@ $leaveBalance = [
     'annual_leave_balance' => $data['leave_balance'] ?? 0,
 ];
 
+// All four leave balances from the leave_balances table.
+$leaveBalances = $data['leave_balances'] ?? [
+    'annual_leave' => $leaveBalance['annual_leave_balance'] ?? 15,
+    'sick_leave'   => 10,
+    'stu_leave'    => 4,
+    'fr_leave'     => 3,
+];
+
 $leaveRequests = $data['leave_requests'] ?? [];
 
 // Value/label pairs so the leave form submits the real enum value
@@ -51,6 +59,8 @@ $leaveRequests = $data['leave_requests'] ?? [];
 $leaveTypeOptions = [
     ['value' => 'annual',    'label' => 'Annual Leave'],
     ['value' => 'sick',      'label' => 'Sick Leave'],
+    ['value' => 'stu_leave', 'label' => 'Study Leave'],
+    ['value' => 'fr_leave',  'label' => 'Family Responsibility Leave'],
     ['value' => 'unpaid',    'label' => 'Unpaid Leave'],
     ['value' => 'emergency', 'label' => 'Emergency Leave'],
     ['value' => 'other',     'label' => 'Other Leave'],

@@ -28,6 +28,13 @@ TIME_FORMAT = "%H:%M:%S"
 DATE_FORMAT = "%Y-%m-%d"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+# GOOGLE SHEETS SYNC
+# Set GOOGLE_SHEETS_SYNC_ENABLED=1 and GOOGLE_SHEETS_WEBHOOK_URL in the Pi's
+# .env file to enable syncing clock events to Google Sheets. The webhook URL
+# is the Google Apps Script Web App URL from the TAPP admin portal settings.
+GOOGLE_SHEETS_SYNC_ENABLED = os.getenv("GOOGLE_SHEETS_SYNC_ENABLED", "0")
+GOOGLE_SHEETS_WEBHOOK_URL = os.getenv("GOOGLE_SHEETS_WEBHOOK_URL", "")
+
 # LOGGING
 LOG_FILE = "logs/attendance.log"
 LOG_LEVEL = "INFO"

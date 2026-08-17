@@ -50,7 +50,8 @@ def main():
     # Start Attendance Manager
 
     attendance = AttendanceManager(
-        database
+        database,
+        logger=logger
     )
 
 

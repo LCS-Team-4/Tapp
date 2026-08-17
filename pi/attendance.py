@@ -1,3 +1,6 @@
+import json
+import urllib.request
+import urllib.error
 from datetime import datetime, timedelta
 from config import COOLDOWN_MINUTES
 
@@ -114,6 +117,13 @@ class AttendanceManager:
             )
 
 
+            self.sync_to_google_sheets(
+                employee_id,
+                name,
+                "clock_in"
+            )
+
+
             return True
 
 
@@ -158,7 +168,73 @@ class AttendanceManager:
             )
 
 
+            self.sync_to_google_sheets(
+                employee_id,
+                name,
+                "clock_out"
+            )
+
+
             return True
+
+
+    # SEND EVENT TO GOOGLE SHEETS
+    # Best-effort: failures are logged but never block the clock flow.
+
+    def sync_to_google_sheets(
+            self,
+            employee_id,
+            employee_name,
+            event_type
+        ):
+
+        try:
+
+            webhook_url = self.database.get_google_sheets_webhook()
+
+            if not webhook_url:
+                return
+
+            payload = {
+                "timestamp": datetime.now().isoformat(),
+                "employee_id": employee_id,
+                "employee_name": employee_name,
+                "event_type": event_type,
+                "source": "device"
+            }
+
+            data = json.dumps(payload).encode("utf-8")
+
+            request = urllib.request.Request(
+                webhook_url,
+                data=data,
+                headers={
+                    "Content-Type": "text/plain",
+                    "User-Agent": "TAPP-Sync/1.0"
+                },
+                method="POST"
+            )
+
+            with urllib.request.urlopen(request, timeout=10) as response:
+                response.read()
+
+            print(
+                "📊 Synced to Google Sheets:",
+                event_type
+            )
+
+        except urllib.error.URLError as error:
+            print(
+                "⚠️ Google Sheets sync failed:",
+                error
+            )
+
+        except Exception as error:
+            print(
+                "⚠️ Google Sheets sync error:",
+                error
+            )
+
 
 
     # CHECK 15 MINUTE COOLDOWN

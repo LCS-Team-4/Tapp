@@ -122,6 +122,61 @@ class AuthController
         return Response::json($request->user());
     }
 
+    /**
+     * Force password change (first login) or normal password update.
+     * Clears must_change_password on success.
+     * For first-login flow the current_password may be the temporary one.
+     */
+    public function changePassword(Request $request): Response
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return Response::error('Unauthorized', 401);
+        }
+
+        $currentPassword = (string) $request->input('current_password', '');
+        $newPassword = (string) $request->input('new_password', '');
+        $confirmPassword = (string) $request->input('confirm_password', '');
+
+        if ($newPassword === '' || strlen($newPassword) < 8) {
+            return Response::error('New password must be at least 8 characters', 400);
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            return Response::error('New password and confirmation do not match', 400);
+        }
+
+        // Verify current password (required even on first-login force change)
+        try {
+            $this->users->verifyCredentials(
+                $user['email'] ?? $user['employee_id'] ?? '',
+                $currentPassword
+            );
+        } catch (AuthException) {
+            // Also try employee_id if email was used above
+            try {
+                $this->users->verifyCredentials(
+                    $user['employee_id'] ?? '',
+                    $currentPassword
+                );
+            } catch (AuthException) {
+                return Response::error('Current password is incorrect', 401);
+            }
+        }
+
+        $hash = password_hash($newPassword, PASSWORD_BCRYPT);
+        $ok = $this->users->changePassword((int) $user['id'], $hash);
+
+        if (!$ok) {
+            return Response::error('Unable to update password', 500);
+        }
+
+        return Response::json([
+            'message' => 'Password updated successfully',
+            'must_change_password' => false,
+        ]);
+    }
+
     private static function startSession(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {

@@ -17,7 +17,16 @@ function require_role(string $role): void
     // trailing slash so root deployments don't end up with "//login.php"
     $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'], 2)), '/');
 
-    if (empty($_SESSION['authenticated']) || empty($_SESSION['user_id'])) {
+    if (empty($_SESSION['authenticated'])) {
+        header('Location: ' . $base . '/login.php');
+        exit;
+    }
+
+    // If we have a valid login but user_id was never copied into the frontend
+    // session (older sessions), clear the broken state and send them to login
+    // instead of bouncing portal ↔ login forever.
+    if (empty($_SESSION['user_id'])) {
+        $_SESSION = [];
         header('Location: ' . $base . '/login.php');
         exit;
     }

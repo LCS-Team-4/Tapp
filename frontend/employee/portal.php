@@ -192,10 +192,10 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
               <div class="card">
                 <div class="section-head"><h3>Profile Details</h3></div>
                 <div class="form-row">
-                  <div class="form-field" id="field-profile-name"><label>Full Name</label><input type="text" id="profile-name" value="<?= htmlspecialchars($currentUser['name']) ?>"></div>
+                  <div class="form-field" id="field-profile-name"><label>Full Name</label><input type="text" id="profile-name" value="<?= htmlspecialchars($currentUser['name']) ?>" disabled title="Full name cannot be changed by employees"></div>
                   <div class="form-field"><label>Employee ID</label><input type="text" value="<?= htmlspecialchars($currentUser['employee_id']) ?>" disabled></div>
                   <div class="form-field" id="field-profile-email"><label>Email</label><input type="text" id="profile-email" value="<?= htmlspecialchars($currentUser['email']) ?>"></div>
-                  <div class="form-field"><label>Department</label><input type="text" id="profile-department" value="<?= htmlspecialchars($currentUser['department']) ?>"></div>
+                  <div class="form-field"><label>Department</label><input type="text" id="profile-department" value="<?= htmlspecialchars($currentUser['department']) ?>" disabled title="Department cannot be changed by employees"></div>
                 </div>
                 <p class="form-error" id="profile-save-error" style="display:none;"></p>
                 <p class="form-success" id="profile-save-success" style="display:none;">Profile updated.</p>
@@ -314,6 +314,35 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
   </div>
 </div>
 
+<!-- Force password change modal (first login after admin enrolment) -->
+<div id="force-password-modal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+  <div class="card" style="max-width:420px; width:90%; margin:auto; padding:28px; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <div class="section-head" style="margin-bottom:12px;">
+      <h3 style="margin:0;">Change Your Password</h3>
+    </div>
+    <p style="margin:0 0 18px; color:var(--text-muted, #666); font-size:0.95rem;">
+      For security, you must set a new password before continuing. This is required on your first login.
+    </p>
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>Current (temporary) Password</label>
+      <input type="password" id="force-pwd-current" autocomplete="current-password">
+    </div>
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>New Password</label>
+      <input type="password" id="force-pwd-new" autocomplete="new-password">
+    </div>
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>Confirm New Password</label>
+      <input type="password" id="force-pwd-confirm" autocomplete="new-password">
+    </div>
+    <p class="form-error" id="force-pwd-error" style="display:none; margin-bottom:12px;"></p>
+    <button class="btn btn-pink" id="btn-force-change-password" type="button" style="width:100%;">Set New Password &amp; Continue</button>
+  </div>
+</div>
+
+<script>
+  window.__MUST_CHANGE_PASSWORD__ = <?= json_encode((bool) ($currentUser['must_change_password'] ?? false)) ?>;
+</script>
 <script src="../assets/js/app.js?v=<?= filemtime(__DIR__ . '/../assets/js/app.js') ?>"></script>
 <script src="../assets/js/employee.js?v=<?= filemtime(__DIR__ . '/../assets/js/employee.js') ?>"></script>
 </body>

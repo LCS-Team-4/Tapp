@@ -1,4 +1,4 @@
 <?php
-// Landing page — redirect to the login page.
+// Simple entry point — redirect to the login page.
 header('Location: frontend/login.php');
 exit;

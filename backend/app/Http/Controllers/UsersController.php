@@ -233,17 +233,16 @@ class UsersController
 
         $name = trim((string) $request->input('name', ''));
         $email = trim((string) $request->input('email', ''));
-        $password = trim((string) $request->input('password', ''));
         $department = trim((string) $request->input('department', '')) ?: null;
         $position = trim((string) $request->input('position', '')) ?: null;
-        $sendWelcomeEmail = (bool) $request->input('send_welcome_email', false);
 
         if ($name === '' || $email === '') {
             return Response::error('Name and email are required', 400);
         }
 
-        // Use provided password or generate a temporary one
-        $temporaryPassword = $password ?: bin2hex(random_bytes(5));
+        // Always auto-generate a strong temporary password on the server.
+        // Admins must not set employee passwords manually.
+        $temporaryPassword = $this->generateTemporaryPassword();
 
         $nameParts = array_values(array_filter(array_map('trim', explode(' ', $name))));
         $firstName = $nameParts[0] ?? 'Unknown';
@@ -267,6 +266,7 @@ class UsersController
                 'staff',
                 $department,
                 $position,
+                true, // must_change_password — employee must set their own on first login
             );
         } catch (\Throwable $e) {
             return Response::error('Unable to register employee: ' . $e->getMessage(), 500);
@@ -278,14 +278,40 @@ class UsersController
             'email' => $created->email,
             'department' => $department,
             'position' => $position,
+            'temporary_password' => $temporaryPassword,
             'data' => [
                 'employee_id' => $created->employeeId,
                 'name' => $created->name,
                 'email' => $created->email,
                 'department' => $department,
                 'position' => $position,
+                'temporary_password' => $temporaryPassword,
             ],
         ], 201);
+    }
+
+    /**
+     * Generate a readable-but-strong temporary password (12 chars).
+     */
+    private function generateTemporaryPassword(int $length = 12): string
+    {
+        $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $lower = 'abcdefghijkmnopqrstuvwxyz';
+        $numbers = '23456789';
+        $symbols = '!@#$%&*';
+        $all = $upper . $lower . $numbers . $symbols;
+
+        $password = '';
+        $password .= $upper[random_int(0, strlen($upper) - 1)];
+        $password .= $lower[random_int(0, strlen($lower) - 1)];
+        $password .= $numbers[random_int(0, strlen($numbers) - 1)];
+        $password .= $symbols[random_int(0, strlen($symbols) - 1)];
+
+        for ($i = strlen($password); $i < $length; $i++) {
+            $password .= $all[random_int(0, strlen($all) - 1)];
+        }
+
+        return str_shuffle($password);
     }
 
     

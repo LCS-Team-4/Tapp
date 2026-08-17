@@ -62,6 +62,15 @@ $error = $_GET['error'] ?? '';
     <?php elseif ($error === '2'): ?>
       <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
         We were unable to process your login right now. Please try again later.
+        <?php
+          $dbg = $_SESSION['login_debug'] ?? [];
+          $hint = $dbg['exception']
+            ?? ($dbg['api_body']['error']['message'] ?? null)
+            ?? (isset($dbg['api_status']) ? 'HTTP ' . $dbg['api_status'] : null);
+          if ($hint):
+        ?>
+          <br><small style="opacity:0.9;"><?= htmlspecialchars((string) $hint) ?></small>
+        <?php endif; ?>
       </p>
     <?php elseif ($error === '3'): ?>
       <p style="background:rgba(109,56,43,0.25); color:#e6b2a4; padding:10px 14px; border-radius:9px; font-size:12.5px; margin-bottom:16px;">
@@ -75,10 +84,10 @@ $error = $_GET['error'] ?? '';
         console.log(<?php echo json_encode($_SESSION['login_debug'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
         console.groupEnd();
       </script>
-      <!-- <details style="margin-bottom:16px; padding:12px; background:#f4f4f4; border:1px solid #ccc; border-radius:8px;">
+      <details style="margin-bottom:16px; padding:12px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#e6b2a4; font-size:12px;">
         <summary style="font-weight:600; cursor:pointer;">Show login debug details</summary>
-        <pre style="white-space:pre-wrap; word-break:break-word;"><?php echo htmlspecialchars(json_encode($_SESSION['login_debug'], JSON_PRETTY_PRINT), ENT_QUOTES, 'UTF-8'); ?></pre>
-      </details> -->
+        <pre style="white-space:pre-wrap; word-break:break-word; margin-top:8px;"><?php echo htmlspecialchars(json_encode($_SESSION['login_debug'], JSON_PRETTY_PRINT), ENT_QUOTES, 'UTF-8'); ?></pre>
+      </details>
       <?php unset($_SESSION['login_debug']); ?>
     <?php endif; ?>
 
@@ -100,6 +109,10 @@ $error = $_GET['error'] ?? '';
       </div>
       <button type="submit" class="btn-primary">Sign In</button>
     </form>
+    <p style="text-align:center; margin-top:14px; font-size:13px;">
+      <a href="forgot_password.php" style="color:inherit; opacity:0.85;">Forgot password?</a>
+    </p>
+
   </div>
 </div>
 

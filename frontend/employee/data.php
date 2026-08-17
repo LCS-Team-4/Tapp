@@ -26,7 +26,38 @@ $currentUser = $data['current_user'] ?? [
     'role_label'  => $_SESSION['role_label'] ?? '',
     'initials'    => $_SESSION['initials'] ?? '??',
     'status'      => 'active',
+    'must_change_password' => false,
 ];
+
+// Always resolve must_change_password (and fill missing profile fields) from
+// the database so the first-login force-change popup works even when the
+// HTTP API path is unavailable under the PHP built-in server.
+try {
+    $backendRoot = dirname(__DIR__, 2) . '/backend';
+    $autoload = $backendRoot . '/vendor/autoload.php';
+    $bootstrap = $backendRoot . '/bootstrap/app.php';
+    if (is_file($autoload)) {
+        require_once $autoload;
+        if (!function_exists('config') && is_file($bootstrap)) {
+            require $bootstrap;
+        }
+        $users = new \App\Repositories\UserRepository();
+        $uid = (int) ($_SESSION['user_id'] ?? 0);
+        $dbUser = $uid > 0 ? $users->findById($uid) : null;
+        if ($dbUser === null && $employeeId !== '') {
+            $dbUser = $users->findByEmployeeId($employeeId);
+        }
+        if ($dbUser !== null) {
+            $arr = $dbUser->toArray();
+            $currentUser = array_merge($currentUser, $arr);
+            $currentUser['must_change_password'] = !empty($arr['must_change_password']);
+            $currentUser['role_label'] = ($arr['role'] ?? '') === 'admin' ? 'System Admin' : 'Employee';
+            $currentUser['initials'] = $_SESSION['initials'] ?? $currentUser['initials'] ?? '??';
+        }
+    }
+} catch (Throwable $e) {
+    error_log('Employee data DB fallback: ' . $e->getMessage());
+}
 
 // ---- 003_create_attendance ----
 $todayStatus        = $data['today_status'] ?? [

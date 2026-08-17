@@ -7,6 +7,7 @@ use App\Http\Response;
 use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
 use App\Services\AttendanceService;
+use App\Services\AttendanceSyncService;
 
 class UsersController
 {
@@ -62,6 +63,14 @@ class UsersController
         $user = $request->user();
         if ($user === null) {
             return Response::error('Unauthorized', 401);
+        }
+
+        // Push any pending attendance events to Google Sheets automatically.
+        // This runs whenever an admin loads the dashboard — no cron job needed.
+        try {
+            (new AttendanceSyncService())->syncPendingEvents();
+        } catch (\Throwable $e) {
+            error_log('AttendanceSyncService dashboard hook failed: ' . $e->getMessage());
         }
 
         $attendance = new AttendanceService();

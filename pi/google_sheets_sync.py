@@ -3,41 +3,43 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 
-from config import (
-    GOOGLE_SHEETS_SYNC_ENABLED,
-    GOOGLE_SHEETS_WEBHOOK_URL
-)
-
 # Google Sheets sync for the Pi terminal.
 # Sends clock-in/clock-out events to the Google Apps Script Web App URL
-# configured in the TAPP admin portal. The Apps Script appends a row to
-# the Google Sheet for each event.
+# configured in the TAPP admin portal (settings table). The Apps Script
+# appends a row to the Google Sheet for each event.
 #
-# The webhook URL is read from the GOOGLE_SHEETS_WEBHOOK_URL environment
-# variable (set in the Pi's .env file). Sync can be toggled on/off via
-# GOOGLE_SHEETS_SYNC_ENABLED.
+# The webhook URL and sync-enabled flag are read from the `settings` table
+# in the database — the same source the PHP backend uses. This means the
+# Pi automatically picks up the configuration from TAPP Admin → Settings
+# without needing a separate .env file.
 #
 # All failures are logged but never break the clock flow.
 
 
 class GoogleSheetsSync:
 
-    def __init__(self, logger=None):
+    def __init__(self, database, logger=None):
+        self.database = database
         self.logger = logger
-        self.webhook_url = (GOOGLE_SHEETS_WEBHOOK_URL or "").strip()
-        self.sync_enabled = str(GOOGLE_SHEETS_SYNC_ENABLED or "0").strip() in ("1", "true", "True", "TRUE", "yes")
 
     def log_event(self, employee_id, employee_name, event_type, source="device"):
         """Send a clock event to the Google Sheet. Returns True on success."""
-        if not self.sync_enabled:
+        settings = self._get_settings()
+        if not settings:
+            self._log("Google Sheets sync: could not read settings from database")
             return False
 
-        if not self.webhook_url:
+        sync_enabled = str(settings.get("google_sheets_sync_enabled", "0")).strip()
+        if sync_enabled not in ("1", "true", "True", "TRUE", "yes"):
+            return False
+
+        webhook_url = (settings.get("google_sheets_webhook_url") or "").strip()
+        if not webhook_url:
             self._log("Google Sheets sync enabled but no webhook URL configured")
             return False
 
         # Validate the URL looks like a Google Apps Script Web App.
-        if not self.webhook_url.startswith("https://script.google.com/macros/s/") or not self.webhook_url.endswith("/exec"):
+        if not webhook_url.startswith("https://script.google.com/macros/s/") or not webhook_url.endswith("/exec"):
             self._log("Google Sheets sync: invalid webhook URL")
             return False
 
@@ -52,7 +54,7 @@ class GoogleSheetsSync:
         data = json.dumps(payload).encode("utf-8")
 
         req = urllib.request.Request(
-            self.webhook_url,
+            webhook_url,
             data=data,
             headers={
                 "Content-Type": "text/plain",
@@ -79,6 +81,14 @@ class GoogleSheetsSync:
         except Exception as e:
             self._log(f"Google Sheets sync error: {e}")
             return False
+
+    def _get_settings(self):
+        """Read the Google Sheets sync settings from the database settings table."""
+        try:
+            return self.database.get_settings()
+        except Exception as e:
+            self._log(f"Google Sheets sync: error reading settings: {e}")
+            return None
 
     def _log(self, message):
         if self.logger:

@@ -1154,6 +1154,105 @@ function wireReports() {
   updateExportButtons();
 }
 
+// ---- Settings: Google Sheets sync ----
+function wireGoogleSheets() {
+  const panel = document.getElementById('a-settings');
+  if (!panel) return;
+
+  const toggleBtn = panel.querySelector('#toggle-google-sheets');
+  const urlEl = panel.querySelector('#setting-google-sheets-url');
+  const saveBtn = panel.querySelector('#btn-save-google-sheets');
+  const testBtn = panel.querySelector('#btn-test-google-sheets');
+  const errorEl = panel.querySelector('#google-sheets-error');
+  const successEl = panel.querySelector('#google-sheets-success');
+  if (!toggleBtn || !urlEl || !saveBtn || !testBtn) return;
+
+  let syncEnabled = toggleBtn.getAttribute('aria-pressed') === 'true';
+
+  function showError(message) {
+    if (successEl) successEl.style.display = 'none';
+    if (errorEl) {
+      errorEl.textContent = message;
+      errorEl.style.display = 'block';
+    }
+  }
+
+  function showSuccess(message) {
+    if (errorEl) errorEl.style.display = 'none';
+    if (successEl) {
+      successEl.textContent = message;
+      successEl.style.display = 'block';
+    }
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    syncEnabled = !syncEnabled;
+    toggleBtn.classList.toggle('on', syncEnabled);
+    toggleBtn.setAttribute('aria-pressed', String(syncEnabled));
+    if (successEl) successEl.style.display = 'none';
+    if (errorEl) errorEl.style.display = 'none';
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    try {
+      const payload = {
+        google_sheets_sync_enabled: syncEnabled ? 1 : 0,
+        google_sheets_webhook_url: (urlEl.value || '').trim(),
+      };
+
+      const response = await fetch(`${API_ROOT}/api/admin/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = body.error?.message || 'Unable to save Google Sheets settings';
+        throw new Error(message);
+      }
+
+      showSuccess('Google Sheets sync settings saved.');
+      setTimeout(() => {
+        if (successEl) successEl.style.display = 'none';
+      }, 3000);
+    } catch (error) {
+      showError(error.message);
+    }
+  });
+
+  testBtn.addEventListener('click', async () => {
+    const url = (urlEl.value || '').trim();
+    if (!url) {
+      showError('Please enter the Google Apps Script Web App URL first.');
+      return;
+    }
+
+    testBtn.disabled = true;
+    try {
+      const response = await fetch(`${API_ROOT}/api/admin/settings/test-google-sheets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = body.error?.message || 'Connection test failed';
+        throw new Error(message);
+      }
+
+      showSuccess(body.data?.message || 'Connection successful! A test row was added to your spreadsheet.');
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      testBtn.disabled = false;
+    }
+  });
+}
+
 // ---- Settings: toggle switches + dirty-state save ----
 function wireSettings() {
   const panel = document.getElementById('a-settings');
@@ -1431,12 +1530,14 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     wireReports();
     wireSettings();
+    wireGoogleSheets();
     wireAdminInvite();
     loadAdmins();
   });
 } else {
   wireReports();
   wireSettings();
+  wireGoogleSheets();
   wireAdminInvite();
   loadAdmins();
 }

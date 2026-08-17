@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Request;
 use App\Http\Response;
 use App\Repositories\SettingsRepository;
+use App\Services\GoogleSheetsService;
 
 class SettingsController
 {
@@ -51,9 +52,41 @@ class SettingsController
             return Response::error('company_name cannot be empty', 400);
         }
 
+        // Validate Google Sheets webhook URL if provided
+        if (isset($payload['google_sheets_webhook_url']) && $payload['google_sheets_webhook_url'] !== '') {
+            $url = trim((string) $payload['google_sheets_webhook_url']);
+            if (!preg_match('#^https://script\.google\.com/macros/s/.*/exec$#', $url)) {
+                return Response::error('Invalid Google Sheets webhook URL. Must be a Google Apps Script Web App URL like https://script.google.com/macros/s/.../exec', 400);
+            }
+            $payload['google_sheets_webhook_url'] = $url;
+        } elseif (isset($payload['google_sheets_webhook_url'])) {
+            $payload['google_sheets_webhook_url'] = null;
+        }
+
         $settings = $this->repository->update($payload);
 
         return Response::json($this->shape($settings));
+    }
+
+    // POST /api/admin/settings/test-google-sheets — sends a test event to the
+    // given webhook URL to verify the connection works (admin only).
+    public function testGoogleSheets(Request $request): Response
+    {
+        $user = $request->user();
+        if ($user === null || $user['role'] !== 'admin') {
+            return Response::error('Forbidden', 403);
+        }
+
+        $url = trim((string) $request->input('url', ''));
+
+        $service = new GoogleSheetsService();
+        [$ok, $message] = $service->testConnection($url);
+
+        if (!$ok) {
+            return Response::error($message, 400);
+        }
+
+        return Response::json(['message' => $message]);
     }
 
 
@@ -68,6 +101,7 @@ class SettingsController
             'late_threshold_minutes' => (int) ($settings['late_threshold_minutes'] ?? 10),
             'qr_clock_in_enabled' => (bool) ($settings['qr_clock_in_enabled'] ?? true),
             'google_sheets_sync_enabled' => (bool) ($settings['google_sheets_sync_enabled'] ?? false),
+            'google_sheets_webhook_url' => $settings['google_sheets_webhook_url'] ?? '',
         ];
     }
 }

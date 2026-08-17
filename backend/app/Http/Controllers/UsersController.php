@@ -184,6 +184,8 @@ class UsersController
                 'working_hours_start' => substr((string) ($settings['working_hours_start'] ?? '08:00:00'), 0, 5),
                 'working_hours_end' => substr((string) ($settings['working_hours_end'] ?? '17:00:00'), 0, 5),
                 'late_threshold_minutes' => (int) ($settings['late_threshold_minutes'] ?? 10),
+                'google_sheets_sync_enabled' => (bool) ($settings['google_sheets_sync_enabled'] ?? false),
+                'google_sheets_webhook_url' => $settings['google_sheets_webhook_url'] ?? '',
             ],
             'dashboard_stats' => [
                 'employees_onsite' => $onSiteNow,

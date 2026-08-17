@@ -64,3 +64,20 @@
   .content{ padding:20px 16px 50px; }
   .topbar{ padding:16px 18px; }
 }
+
+@media (max-width:640px){
+  .topbar{ padding:12px 14px; gap:10px; }
+  .topbar-title h2{ font-size:18px; }
+  .topbar-title p{ font-size:11px; }
+  .user-chip .who{ font-size:12px; }
+  .user-chip .role{ font-size:10px; }
+  .user-chip .avatar{ width:32px; height:32px; font-size:12px; }
+  .topbar-left{ gap:10px; min-width:0; }
+  .topbar-title{ min-width:0; }
+  .topbar-title h2, .topbar-title p{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+}
+
+@media (max-width:420px){
+  .user-chip > div:first-child{ display:none; }
+  .topbar-title p{ display:none; }
+}

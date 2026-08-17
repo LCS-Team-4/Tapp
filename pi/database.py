@@ -325,6 +325,38 @@ class Database:
 
 
 
+    # GET SETTINGS
+    # Reads the singleton settings row (id=1) — the same source the PHP
+    # backend uses for Google Sheets sync configuration.
+
+    def get_settings(self):
+
+        query = """
+
+        SELECT *
+        FROM settings
+        WHERE id = 1
+
+        """
+
+
+        self.cursor.execute(
+            query
+        )
+
+
+        result = self.cursor.fetchone()
+
+
+        if result:
+
+            return result
+
+
+        return {}
+
+
+
     # CHECK IF CARD EXISTS
 
     def card_registered(self, uid):

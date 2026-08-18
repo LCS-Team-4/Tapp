@@ -126,6 +126,13 @@ function dashboard_signature(array $data): string
     }
     $parts[] = implode('|', $empSig);
 
+    $passwordResets = $data['password_reset_requests'] ?? [];
+    $prSig = [];
+    foreach ($passwordResets as $row) {
+        $prSig[] = ($row['id'] ?? '') . ':' . ($row['status'] ?? '');
+    }
+    $parts[] = implode('|', $prSig);
+
     return implode('||', $parts);
 }
 

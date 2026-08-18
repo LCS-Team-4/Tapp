@@ -84,6 +84,21 @@ class UsersController
         $lateArrivals = $attendance->lateArrivalsList();
         $lateCount = count($lateArrivals);
 
+        // Password reset requests for the admin verification tab.
+        $passwordResetRows = [];
+        try {
+            $pdo = \App\Database\Connection::get();
+            $prStmt = $pdo->query(
+                "SELECT id, employee_id, email, status, created_at, reviewed_at
+                 FROM password_reset_requests
+                 ORDER BY FIELD(status, 'pending', 'approved', 'rejected'), created_at DESC
+                 LIMIT 100"
+            );
+            $passwordResetRows = $prStmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Throwable $e) {
+            error_log('UsersController::dashboard password_resets: ' . $e->getMessage());
+        }
+
         // Employees: map to the shape admin/data.php expects
         $employees = [];
         foreach ($allUsers as $u) {
@@ -186,6 +201,7 @@ class UsersController
             'attendance_monitoring' => $attendanceMonitoring,
             'pending_leave_requests' => $pendingLeaveRequests,
             'leave_history' => $leaveHistory,
+            'password_reset_requests' => $passwordResetRows,
             'live_feed' => $feed,
             'late_arrivals_list' => $lateArrivals,
             'system_settings' => [

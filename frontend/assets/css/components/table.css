@@ -16,6 +16,12 @@ tr:hover td{ background:rgba(210,167,167,0.04); }
   flex:1; min-width:180px; padding:11px 14px; background:rgba(0,0,0,0.25);
   border:1px solid rgba(210,167,167,0.2); border-radius:9px; color:var(--cream); font-size:13.5px; outline:none; transition:border-color 0.2s, background-color 0.2s;
 }
+@media (max-width:640px){
+  .toolbar{ flex-direction:column; align-items:stretch; }
+  .toolbar .search-input{ width:100%; min-width:0; }
+  .toolbar .select-input{ width:100%; }
+  .toolbar .btn{ width:100%; text-align:center; }
+}
 .search-input:hover{ border-color:rgba(210,167,167,0.35); }
 .search-input:focus{ border-color:var(--pink); background:rgba(0,0,0,0.35); }
 .select-input{

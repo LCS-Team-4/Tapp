@@ -6,6 +6,11 @@
 .clock-sub{ color:var(--cream-dim); font-size:13.5px; margin-top:6px; }
 .clock-status{ display:flex; align-items:center; gap:12px; }
 
+@media (max-width:480px){
+  .clock-time{ font-size:36px; }
+  .clock-hero{ gap:16px; }
+}
+
 /* Inline form feedback — no popup pattern for validation/success messages. */
 .form-error{ color:#e6b2a4; font-size:12.5px; margin-top:12px; }
 .form-success{ color:#c3c9a4; font-size:12.5px; margin-top:12px; }
@@ -15,3 +20,22 @@
 .password-field{ display:flex; align-items:center; gap:10px; }
 .password-field input{ flex:1; min-width:0; }
 .password-field .btn-icon{ flex-shrink:0; }
+
+/* Quick Actions — buttons stack full-width on mobile instead of wrapping
+   unevenly. */
+.quick-actions{ display:flex; gap:14px; flex-wrap:wrap; }
+.quick-actions .btn{ flex:1 1 auto; min-width:140px; text-align:center; }
+@media (max-width:480px){
+  .quick-actions{ flex-direction:column; }
+  .quick-actions .btn{ width:100%; min-width:0; }
+}
+
+/* Leave Balances — equal-width grid so "Family Resp." doesn't stretch
+   its column wider than the others. */
+.leave-balances{ display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:10px; }
+.leave-balances .lb-item{ text-align:center; min-width:0; }
+.leave-balances .lb-item .stat-num{ font-size:22px; }
+.leave-balances .lb-item .muted{ font-size:12px; overflow-wrap:break-word; word-break:break-word; }
+@media (max-width:480px){
+  .leave-balances{ grid-template-columns:repeat(2, 1fr); gap:14px; }
+}

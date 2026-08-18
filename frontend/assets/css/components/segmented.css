@@ -16,3 +16,8 @@
 
 .subtab-panel{ display:none; }
 .subtab-panel.active{ display:block; animation: fadeIn 0.3s ease; }
+
+@media (max-width:480px){
+  .segmented{ display:flex; width:100%; }
+  .segmented-item{ flex:1; text-align:center; padding:9px 10px; font-size:12.5px; }
+}

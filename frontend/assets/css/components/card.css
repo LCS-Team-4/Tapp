@@ -5,12 +5,16 @@
 .grid-3{ grid-template-columns:repeat(3,1fr); }
 .grid-2{ grid-template-columns:2fr 1fr; }
 @media (max-width:1100px){ .grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:1fr;} .grid-2{grid-template-columns:1fr;} }
+@media (max-width:480px){ .grid-4{grid-template-columns:1fr;} }
 
 .card{
   background: linear-gradient(180deg, rgba(61,21,21,0.55), rgba(44,17,15,0.6));
   border:1px solid rgba(210,167,167,0.14);
   border-radius: var(--radius);
   padding:22px;
+}
+@media (max-width:480px){
+  .card{ padding:16px 14px; }
 }
 .card h3{ font-size:15px; color:var(--cream); margin-bottom:4px; }
 .card .sub{ font-size:12px; color:var(--cream-dim); margin-bottom:16px;}

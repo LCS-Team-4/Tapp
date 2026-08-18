@@ -429,16 +429,7 @@ if (is_readable($emailEnvPath)) {
 
       <!-- Settings -->
       <div class="tab-panel" id="a-settings">
-        <div class="card">
-          <div class="section-head"><h3>Integrations</h3></div>
-          <div class="settings-row">
-            <div>
-              <div class="sr-label">Raspberry Pi Device</div>
-              <div class="sr-sub"><?= htmlspecialchars($terminalStatus['device_name']) ?> · <?= htmlspecialchars($terminalStatus['network_label']) ?></div>
-            </div>
-            <span class="badge <?= $terminalConnected ? 'badge-present' : 'badge-absent' ?>"><?= $terminalConnected ? 'Connected' : 'Disconnected' ?></span>
-          </div>
-        </div>
+        
         <div class="card" style="margin-top:14px;">
           <div class="section-head"><h3>Google Sheets Sync</h3></div>
           <p class="muted" style="margin-bottom:12px;">Log sign-in, sign-out, and clock events to a Google Sheet. Create a Google Apps Script Web App and paste its URL below.</p>

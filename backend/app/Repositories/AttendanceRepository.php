@@ -11,11 +11,14 @@ use PDO;
 class AttendanceRepository
 {
     // Records a clock-in or clock-out event in the hosted schema's action-log.
+    // sync_status is set to 'pending' so the Google Sheets cron job
+    // (backend/cron/sync_google_sheets.php) picks it up and pushes it to
+    // the spreadsheet.
     public function recordEvent(string $employeeId, string $action, string $method = 'manual'): int
     {
         $stmt = Connection::get()->prepare(
             'INSERT INTO attendance (employee_id, action, attendance_time, check_in_method, sync_status, location, device_info) '
-            . "VALUES (?, ?, NOW(), ?, 'synced', 'Main Entrance', 'Web Portal')"
+            . "VALUES (?, ?, NOW(), ?, 'pending', 'Main Entrance', 'Web Portal')"
         );
         $stmt->execute([$employeeId, $action, $method]);
 

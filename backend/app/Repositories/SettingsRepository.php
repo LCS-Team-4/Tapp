@@ -37,6 +37,7 @@ class SettingsRepository
             'late_threshold_minutes',
             'qr_clock_in_enabled',
             'google_sheets_sync_enabled',
+            'google_sheets_webhook_url',
         ];
 
         $fields = [];

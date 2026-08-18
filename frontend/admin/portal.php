@@ -440,6 +440,27 @@ if (is_readable($emailEnvPath)) {
           </div>
         </div>
         <div class="card" style="margin-top:14px;">
+          <div class="section-head"><h3>Google Sheets Sync</h3></div>
+          <p class="muted" style="margin-bottom:12px;">Log sign-in, sign-out, and clock events to a Google Sheet. Create a Google Apps Script Web App and paste its URL below.</p>
+          <div class="settings-row">
+            <div>
+              <div class="sr-label">Enable Google Sheets Sync</div>
+              <div class="sr-sub">Append a row to your spreadsheet on every login, logout, and clock event</div>
+            </div>
+            <button class="toggle <?= $systemSettings['google_sheets_sync_enabled'] ? 'on' : '' ?>" id="toggle-google-sheets" type="button" aria-pressed="<?= $systemSettings['google_sheets_sync_enabled'] ? 'true' : 'false' ?>"></button>
+          </div>
+          <div class="form-field" style="margin-top:14px;">
+            <label>Google Apps Script Web App URL</label>
+            <input type="url" id="setting-google-sheets-url" placeholder="https://script.google.com/macros/s/.../exec" value="<?= htmlspecialchars($systemSettings['google_sheets_webhook_url'] ?? '') ?>">
+          </div>
+          <p class="form-error" id="google-sheets-error" style="display:none; margin-top:14px;"></p>
+          <p class="form-success" id="google-sheets-success" style="display:none; margin-top:14px;"></p>
+          <div style="display:flex; gap:10px; margin-top:16px;">
+            <button class="btn btn-pink" id="btn-save-google-sheets" type="button">Save Sync Settings</button>
+            <button class="btn btn-outline" id="btn-test-google-sheets" type="button">Test Connection</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px;">
           <div class="section-head"><h3>System Settings</h3></div>
           <div class="form-row">
             <div class="form-field"><label>Company Name</label><input type="text" id="setting-company-name" value="<?= htmlspecialchars($systemSettings['company_name'] ?? '') ?>"></div>

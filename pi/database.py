@@ -293,6 +293,70 @@ class Database:
 
 
 
+    # GET GOOGLE SHEETS WEBHOOK URL
+    # Returns the webhook URL if sync is enabled, otherwise None.
+
+    def get_google_sheets_webhook(self):
+
+        query = """
+
+        SELECT google_sheets_sync_enabled, google_sheets_webhook_url
+        FROM settings
+        WHERE id = 1
+
+        """
+
+        self.cursor.execute(query)
+
+        result = self.cursor.fetchone()
+
+        if not result:
+            return None
+
+        if not result.get("google_sheets_sync_enabled"):
+            return None
+
+        url = result.get("google_sheets_webhook_url")
+
+        if not url:
+            return None
+
+        return url
+
+
+
+    # GET SETTINGS
+    # Reads the singleton settings row (id=1) — the same source the PHP
+    # backend uses for Google Sheets sync configuration.
+
+    def get_settings(self):
+
+        query = """
+
+        SELECT *
+        FROM settings
+        WHERE id = 1
+
+        """
+
+
+        self.cursor.execute(
+            query
+        )
+
+
+        result = self.cursor.fetchone()
+
+
+        if result:
+
+            return result
+
+
+        return {}
+
+
+
     # CHECK IF CARD EXISTS
 
     def card_registered(self, uid):

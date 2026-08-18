@@ -7,6 +7,7 @@ use App\Http\Response;
 use App\Repositories\SettingsRepository;
 use App\Repositories\UserRepository;
 use App\Services\AttendanceService;
+use App\Services\AttendanceSyncService;
 
 class UsersController
 {
@@ -62,6 +63,14 @@ class UsersController
         $user = $request->user();
         if ($user === null) {
             return Response::error('Unauthorized', 401);
+        }
+
+        // Push any pending attendance events to Google Sheets automatically.
+        // This runs whenever an admin loads the dashboard — no cron job needed.
+        try {
+            (new AttendanceSyncService())->syncPendingEvents();
+        } catch (\Throwable $e) {
+            error_log('AttendanceSyncService dashboard hook failed: ' . $e->getMessage());
         }
 
         $attendance = new AttendanceService();
@@ -184,6 +193,8 @@ class UsersController
                 'working_hours_start' => substr((string) ($settings['working_hours_start'] ?? '08:00:00'), 0, 5),
                 'working_hours_end' => substr((string) ($settings['working_hours_end'] ?? '17:00:00'), 0, 5),
                 'late_threshold_minutes' => (int) ($settings['late_threshold_minutes'] ?? 10),
+                'google_sheets_sync_enabled' => (bool) ($settings['google_sheets_sync_enabled'] ?? false),
+                'google_sheets_webhook_url' => $settings['google_sheets_webhook_url'] ?? '',
             ],
             'dashboard_stats' => [
                 'employees_onsite' => $onSiteNow,

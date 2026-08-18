@@ -103,6 +103,8 @@ $systemSettings = $data['system_settings'] ?? [
     'working_hours_start'    => '08:00',
     'working_hours_end'      => '17:00',
     'late_threshold_minutes' => 10,
+    'google_sheets_sync_enabled' => false,
+    'google_sheets_webhook_url' => '',
 ];
 
 $terminalStatus = array_merge([

@@ -57,3 +57,4 @@ $router->put('/admin/admins/promote/{employeeId}', [$usersController, 'promoteTo
 $router->put('/admin/admins/demote/{employeeId}', [$usersController, 'demoteFromAdmin'], [Authenticate::class, RequireAdmin::class]);
 $router->get('/admin/settings', [$settingsController, 'get'], [Authenticate::class, RequireAdmin::class]);
 $router->put('/admin/settings', [$settingsController, 'update'], [Authenticate::class, RequireAdmin::class]);
+$router->post('/admin/settings/test-google-sheets', [$settingsController, 'testGoogleSheets'], [Authenticate::class, RequireAdmin::class]);

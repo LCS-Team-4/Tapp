@@ -28,6 +28,11 @@ TIME_FORMAT = "%H:%M:%S"
 DATE_FORMAT = "%Y-%m-%d"
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+# GOOGLE SHEETS SYNC
+# The Pi reads the Google Sheets sync configuration (enabled flag + webhook
+# URL) directly from the `settings` table in the database — the same source
+# the PHP backend uses. No separate .env variables are needed.
+
 # LOGGING
 LOG_FILE = "logs/attendance.log"
 LOG_LEVEL = "INFO"

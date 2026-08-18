@@ -19,6 +19,7 @@ $sql = "CREATE TABLE IF NOT EXISTS settings (
     late_threshold_minutes smallint unsigned NOT NULL DEFAULT 10,
     qr_clock_in_enabled tinyint(1) NOT NULL DEFAULT 1,
     google_sheets_sync_enabled tinyint(1) NOT NULL DEFAULT 0,
+    google_sheets_webhook_url varchar(500) DEFAULT NULL,
     updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";

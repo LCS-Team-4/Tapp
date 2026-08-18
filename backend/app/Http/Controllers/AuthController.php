@@ -6,6 +6,7 @@ use App\Exceptions\AuthException;
 use App\Http\Request;
 use App\Http\Response;
 use App\Repositories\UserRepository;
+use App\Services\GoogleSheetsService;
 
 class AuthController
 {
@@ -33,6 +34,13 @@ class AuthController
 
         self::startSession();
         $_SESSION['user_id'] = $user->id;
+
+        // Log the sign-in event to Google Sheets (if sync is enabled).
+        try {
+            (new GoogleSheetsService())->logEvent($user->employeeId, $user->name, 'login', 'web');
+        } catch (\Throwable $e) {
+            error_log('GoogleSheetsService login hook failed: ' . $e->getMessage());
+        }
 
         return Response::json($user->toArray());
     }
@@ -88,8 +96,23 @@ class AuthController
     public function logout(Request $request): Response
     {
         self::startSession();
+
+        // Capture the user's identity before destroying the session so the
+        // sign-out event can be logged to Google Sheets.
+        $employeeId = (string) ($_SESSION['employee_id'] ?? '');
+        $userName = (string) ($_SESSION['user_name'] ?? '');
+
         $_SESSION = [];
         session_destroy();
+
+        // Log the sign-out event to Google Sheets (if sync is enabled).
+        if ($employeeId !== '') {
+            try {
+                (new GoogleSheetsService())->logEvent($employeeId, $userName, 'logout', 'web');
+            } catch (\Throwable $e) {
+                error_log('GoogleSheetsService logout hook failed: ' . $e->getMessage());
+            }
+        }
 
         return Response::json(['logged_out' => true]);
     }

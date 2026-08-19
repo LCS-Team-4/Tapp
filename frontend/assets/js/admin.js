@@ -1048,6 +1048,40 @@ const TILE_DATA = {
   leave: { title: 'Leave Reports', build: buildLeaveRows },
 };
 
+// Computes the [startDate, endDate] pair for a report range. Daily = today,
+// weekly = last 7 days, monthly = last 30 days (all inclusive).
+function reportDateRange(range) {
+  const end = new Date();
+  const start = new Date();
+  if (range === 'weekly') {
+    start.setDate(start.getDate() - 6);
+  } else if (range === 'monthly') {
+    start.setDate(start.getDate() - 29);
+  }
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { start: iso(start), end: iso(end) };
+}
+
+// Fetches attendance report rows for a date range from the backend API.
+// Falls back to the DOM (today's data) if the API call fails.
+async function fetchReportRows(range) {
+  const { start, end } = reportDateRange(range);
+  try {
+    const response = await fetch(
+      `${API_ROOT}/api/admin/reports/attendance?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+      { credentials: 'include' }
+    );
+    if (!response.ok) {
+      throw new Error(`API ${response.status}`);
+    }
+    const body = await response.json();
+    return (body.data && body.data.rows) || [];
+  } catch (error) {
+    console.warn('Report API fetch failed, falling back to DOM data:', error);
+    return null; // signal caller to fall back
+  }
+}
+
 // Ported from pdf.js's downloadPdf(), adapted from the ESM `autoTable(doc,
 // opts)` call style to the CDN UMD build's `doc.autoTable(opts)` method
 // style (jsPDF + jspdf-autotable loaded via <script> tags in portal.php's
@@ -1163,18 +1197,56 @@ function wireReports() {
     return range.charAt(0).toUpperCase() + range.slice(1);
   }
 
-  function selectedSections() {
-    return selectedCards()
-      .map((tile) => {
-        const data = TILE_DATA[tile.dataset.key];
-        if (!data) return null;
-        const range = tile.dataset.range || 'none';
-        return {
+  // Builds export sections. For attendance-based tiles (daily, employee_hours)
+  // it fetches rows from the backend API for the selected date range so
+  // weekly/monthly exports include the full range, not just today's DOM data.
+  // Falls back to the DOM (today's data) if the API is unreachable.
+  async function selectedSections() {
+    const cards = selectedCards();
+    const sections = [];
+
+    for (const tile of cards) {
+      const data = TILE_DATA[tile.dataset.key];
+      if (!data) continue;
+      const range = tile.dataset.range || 'none';
+
+      let rows;
+      if (tile.dataset.key === 'daily' || tile.dataset.key === 'employee_hours') {
+        const apiRows = await fetchReportRows(range);
+        if (apiRows !== null) {
+          // Map API rows to the export column shape.
+          if (tile.dataset.key === 'daily') {
+            rows = apiRows.map((r) => ({
+              Date: r.date || '',
+              Employee: r.name || '',
+              'Clock In': r.clock_in || '',
+              'Clock Out': r.clock_out || '',
+              Hours: r.total_hours ?? '',
+              Status: r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : '',
+            }));
+          } else {
+            rows = apiRows.map((r) => ({
+              Date: r.date || '',
+              Employee: r.name || '',
+              Hours: r.total_hours ?? '',
+            }));
+          }
+        } else {
+          rows = data.build();
+        }
+      } else {
+        rows = data.build();
+      }
+
+      if (rows && rows.length) {
+        sections.push({
           title: `${data.title} - ${rangeLabel(range)}`,
-          rows: data.build(),
-        };
-      })
-      .filter((section) => section.rows.length);
+          rows,
+        });
+      }
+    }
+
+    return sections;
   }
 
   function exportFilename(ext) {
@@ -1187,9 +1259,10 @@ function wireReports() {
     return `report-export-${today}.${ext}`;
   }
 
-  csvBtn.addEventListener('click', () => {
+  csvBtn.addEventListener('click', async () => {
     try {
-      const sections = selectedSections();
+      csvBtn.disabled = true;
+      const sections = await selectedSections();
       if (!sections.length) {
         alert('No data available for export. Please select a time range and ensure there is data to export.');
         return;
@@ -1198,12 +1271,15 @@ function wireReports() {
     } catch (error) {
       console.error('CSV export error:', error);
       alert('Failed to export CSV: ' + error.message);
+    } finally {
+      csvBtn.disabled = false;
     }
   });
 
-  pdfBtn.addEventListener('click', () => {
+  pdfBtn.addEventListener('click', async () => {
     try {
-      const sections = selectedSections();
+      pdfBtn.disabled = true;
+      const sections = await selectedSections();
       if (!sections.length) {
         alert('No data available for export. Please select a time range and ensure there is data to export.');
         return;
@@ -1221,6 +1297,8 @@ function wireReports() {
     } catch (error) {
       console.error('PDF export error:', error);
       alert('Failed to export PDF: ' + error.message);
+    } finally {
+      pdfBtn.disabled = false;
     }
   });
 

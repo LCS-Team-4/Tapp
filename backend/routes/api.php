@@ -47,6 +47,7 @@ $router->put('/admin/leave-requests/{id}/updateRequest', [$leaveController, 'upd
 $router->get('/users', [$usersController, 'getCurrentUser'], [Authenticate::class]);
 $router->get('/users/profile', [$usersController, 'profile'], [Authenticate::class, RequireEmployee::class]);
 $router->get('/admin/dashboard', [$usersController, 'dashboard'], [Authenticate::class, RequireAdmin::class]);
+$router->get('/admin/reports/attendance', [$usersController, 'report'], [Authenticate::class, RequireAdmin::class]);
 $router->get('/admin/employees', [$usersController, 'employees'], [Authenticate::class, RequireAdmin::class]);
 $router->post('/admin/employees', [$usersController, 'register'], [Authenticate::class, RequireAdmin::class]);
 $router->put('/admin/employees/{employeeId}', [$usersController, 'update'], [Authenticate::class, RequireAdmin::class]);

@@ -224,6 +224,38 @@ class UsersController
         ]);
     }
 
+    // Attendance report data for a date range (admin Reports export).
+    // Query params: start=YYYY-MM-DD&end=YYYY-MM-DD
+    public function report(Request $request): Response
+    {
+        $user = $request->user();
+        if ($user === null || $user['role'] !== 'admin') {
+            return Response::error('Forbidden', 403);
+        }
+
+        $start = (string) $request->query('start', '');
+        $end = (string) $request->query('end', '');
+
+        if ($start === '' || $end === '') {
+            return Response::error('Both start and end query parameters are required (YYYY-MM-DD)', 400);
+        }
+
+        $startDate = date('Y-m-d', strtotime($start));
+        $endDate = date('Y-m-d', strtotime($end));
+        if ($startDate === '1970-01-01' || $endDate === '1970-01-01' || $startDate === false || $endDate === false) {
+            return Response::error('Invalid date format. Use YYYY-MM-DD.', 400);
+        }
+
+        $attendance = new AttendanceService();
+        $rows = $attendance->reportBetween($startDate, $endDate);
+
+        return Response::json([
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'rows' => $rows,
+        ]);
+    }
+
     // All employees (admin employee tab)
     public function employees(Request $request): Response
     {

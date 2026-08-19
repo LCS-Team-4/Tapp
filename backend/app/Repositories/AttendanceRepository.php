@@ -65,6 +65,23 @@ class AttendanceRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // Returns attendance events for all employees between two dates
+    // (inclusive), joined with user names. Used by the admin reports export.
+    public function findBetweenDates(string $startDate, string $endDate): array
+    {
+        $stmt = Connection::get()->prepare(
+            'SELECT a.id, a.employee_id, a.action, a.attendance_time, a.check_in_method, '
+            . "CONCAT_WS(' ', u.first_name, u.last_name) AS name "
+            . 'FROM attendance a '
+            . 'LEFT JOIN users u ON u.employee_id = a.employee_id '
+            . 'WHERE DATE(a.attendance_time) BETWEEN ? AND ? '
+            . 'ORDER BY a.attendance_time ASC, a.id ASC'
+        );
+        $stmt->execute([$startDate, $endDate]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     // Returns recent attendance history for one employee.
     public function findHistory(string $employeeId, int $limit = 30): array
     {

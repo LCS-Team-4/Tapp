@@ -352,6 +352,71 @@ class AttendanceService
         return $rows;
     }
 
+    // Builds attendance report rows for a date range (inclusive), one row
+    // per employee per day with a clock event. Used by the admin Reports
+    // export so weekly/monthly reports reflect the full range, not just
+    // today's data.
+    public function reportBetween(string $startDate, string $endDate): array
+    {
+        $events = $this->attendanceRepository->findBetweenDates($startDate, $endDate);
+
+        // Group events by employee_id then by day.
+        $byEmployeeDay = [];
+        foreach ($events as $event) {
+            $empId = $event['employee_id'];
+            $day = substr($event['attendance_time'], 0, 10);
+            $byEmployeeDay[$empId][$day][] = $event;
+        }
+
+        $settings = $this->settingsRepository->get();
+        $lateCutoff = $this->lateCutoffTime($settings);
+
+        $rows = [];
+        foreach ($byEmployeeDay as $empId => $days) {
+            foreach ($days as $day => $dayEvents) {
+                $firstIn = null;
+                $lastOut = null;
+                foreach ($dayEvents as $event) {
+                    if ($event['action'] === 'in' && $firstIn === null) {
+                        $firstIn = $event['attendance_time'];
+                    }
+                    if ($event['action'] === 'out') {
+                        $lastOut = $event['attendance_time'];
+                    }
+                }
+
+                $status = $this->dayStatusFromEvents($dayEvents);
+                $isLate = false;
+                if ($status !== 'absent' && $firstIn !== null && $lateCutoff !== null) {
+                    $clockInTime = substr($firstIn, 11, 8); // HH:MM:SS
+                    if ($clockInTime > $lateCutoff) {
+                        $isLate = true;
+                    }
+                }
+
+                $hours = $this->attendanceRepository->computeDailyHoursFromEvents($dayEvents);
+
+                $rows[] = [
+                    'date' => $day,
+                    'employee_id' => $empId,
+                    'name' => $dayEvents[0]['name'] ?? '',
+                    'clock_in' => $firstIn !== null ? substr($firstIn, 11, 5) : null,
+                    'clock_out' => $lastOut !== null ? substr($lastOut, 11, 5) : null,
+                    'total_hours' => $hours,
+                    'status' => $status,
+                    'is_late' => $isLate,
+                ];
+            }
+        }
+
+        // Sort by date, then by employee name.
+        usort($rows, function (array $a, array $b): int {
+            return [$a['date'], $a['name']] <=> [$b['date'], $b['name']];
+        });
+
+        return $rows;
+    }
+
     // Counts how many employees clocked in late today, based on the
     // configured working-hours start + late threshold from settings.
     public function lateArrivalsCount(): int

@@ -31,6 +31,11 @@ body{
   overflow-x:hidden;
 }
 
+/* Mobile overflow safety net — nothing should ever force the page wider
+   than the viewport. */
+img, svg, video, canvas{ max-width:100%; height:auto; }
+button, input, select, textarea{ max-width:100%; }
+
 h1,h2,h3,.display{
   font-family:'Fraunces', serif;
   font-weight:600;

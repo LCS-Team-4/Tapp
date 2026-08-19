@@ -44,7 +44,7 @@ class GoogleSheetsService
         }
 
         $payload = [
-            'timestamp'     => date('c'),
+            'timestamp'     => date('Y-m-d H:i:s'),
             'employee_id'   => $employeeId,
             'employee_name' => $employeeName,
             'event_type'    => $eventType,
@@ -92,7 +92,7 @@ class GoogleSheetsService
         }
 
         $payload = [
-            'timestamp'     => date('c'),
+            'timestamp'     => date('Y-m-d H:i:s'),
             'employee_id'   => 'TEST',
             'employee_name' => 'Test Connection',
             'event_type'    => 'test',

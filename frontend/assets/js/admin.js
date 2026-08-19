@@ -31,7 +31,7 @@ function ensureConfirmOverlay() {
     <div class="modal" style="max-width:380px;">
       <p id="confirm-modal-message" style="margin-bottom:20px; font-size:14px;"></p>
       <div style="display:flex; gap:10px;">
-        <button class="btn btn-rust" id="confirm-modal-confirm" type="button">Confirm</button>
+        <button class="btn btn-outline" id="confirm-modal-confirm" type="button">Confirm</button>
         <button class="btn btn-outline" id="confirm-modal-cancel" type="button">Cancel</button>
       </div>
     </div>
@@ -57,6 +57,46 @@ function confirmDialog(message, onConfirm) {
 
   confirmBtn.addEventListener('click', handleConfirm);
   cancelBtn.addEventListener('click', handleCancel);
+
+  el.classList.add('active');
+}
+
+// ---- Styled alert dialog ----
+// Replaces the browser's native alert() so decision feedback matches the
+// app's UI. Lazily builds one overlay and reuses it, like confirmDialog().
+let alertOverlay = null;
+
+function ensureAlertOverlay() {
+  if (alertOverlay) return alertOverlay;
+
+  alertOverlay = document.createElement('div');
+  alertOverlay.className = 'modal-overlay';
+  alertOverlay.id = 'alert-modal-overlay';
+  alertOverlay.innerHTML = `
+    <div class="modal" style="max-width:380px;">
+      <p id="alert-modal-message" style="margin-bottom:20px; font-size:14px;"></p>
+      <div style="display:flex; justify-content:flex-end;">
+        <button class="btn btn-pink" id="alert-modal-ok" type="button">OK</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(alertOverlay);
+  return alertOverlay;
+}
+
+function alertDialog(message, okLabel = 'OK') {
+  const el = ensureAlertOverlay();
+  el.querySelector('#alert-modal-message').textContent = message || '';
+
+  const okBtn = el.querySelector('#alert-modal-ok');
+  okBtn.textContent = okLabel;
+
+  function close() {
+    el.classList.remove('active');
+    okBtn.removeEventListener('click', close);
+  }
+
+  okBtn.addEventListener('click', close);
 
   el.classList.add('active');
 }
@@ -804,6 +844,30 @@ async function refreshDashboard() {
   }
 }
 
+function renderPasswordResets(data) {
+  const tbody = document.getElementById('password-reset-tbody');
+  if (!tbody) return;
+  const requests = (data && data.password_reset_requests) || [];
+  if (!requests.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="opacity:0.6;">No password reset requests.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = requests.map((r) => {
+    const pending = r.status === 'pending';
+    const actions = pending
+      ? `<button class="btn btn-pink" type="button" data-pr-approve="${escapeHtml(r.id)}">Approve</button>
+         <button class="btn btn-outline" type="button" data-pr-reject="${escapeHtml(r.id)}">Reject</button>`
+      : '—';
+    return `<tr data-id="${escapeHtml(r.id)}">
+      <td>${escapeHtml(r.employee_id || '')}</td>
+      <td>${escapeHtml(r.email || '')}</td>
+      <td>${escapeHtml(r.created_at || '')}</td>
+      <td><span class="badge">${escapeHtml(r.status || '')}</span></td>
+      <td class="pr-actions-col"><div style="display:flex;gap:8px;flex-wrap:wrap;">${actions}</div></td>
+    </tr>`;
+  }).join('');
+}
+
 function renderDashboard(data) {
   renderStats(data.dashboard_stats);
   renderLiveFeed(data.live_feed);
@@ -811,6 +875,7 @@ function renderDashboard(data) {
   renderAttendanceTable(data.attendance_monitoring);
   renderEmployeeStatuses(data.employees);
   renderLeaveLists(data);
+  renderPasswordResets(data);
 }
 
 function renderLeaveLists(data) {
@@ -1565,52 +1630,36 @@ function wirePasswordResets() {
       const response = await fetch('actions/list_password_resets.php', { credentials: 'include' });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error?.message || 'Failed to load');
-      const rows = body.data?.requests || [];
-      if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="opacity:0.6;">No password reset requests.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = rows.map((r) => {
-        const pending = r.status === 'pending';
-        const actions = pending
-          ? `<button class="btn btn-pink" type="button" data-pr-approve="${r.id}">Approve</button>
-             <button class="btn btn-outline" type="button" data-pr-reject="${r.id}">Reject</button>`
-          : '—';
-        return `<tr data-id="${r.id}">
-          <td>${escapeHtml(r.employee_id || '')}</td>
-          <td>${escapeHtml(r.email || '')}</td>
-          <td>${escapeHtml(r.created_at || '')}</td>
-          <td><span class="badge">${escapeHtml(r.status || '')}</span></td>
-          <td style="display:flex;gap:8px;flex-wrap:wrap;">${actions}</td>
-        </tr>`;
-      }).join('');
+      renderPasswordResets({ password_reset_requests: body.data?.requests || [] });
     } catch (e) {
       tbody.innerHTML = `<tr><td colspan="5" style="color:#c44;">${escapeHtml(e.message || 'Error')}</td></tr>`;
     }
   }
 
-  tbody.addEventListener('click', async (ev) => {
+  tbody.addEventListener('click', (ev) => {
     const approveBtn = ev.target.closest('[data-pr-approve]');
     const rejectBtn = ev.target.closest('[data-pr-reject]');
     const id = approveBtn?.dataset.prApprove || rejectBtn?.dataset.prReject;
     if (!id) return;
     const decision = approveBtn ? 'approved' : 'rejected';
     const label = decision === 'approved' ? 'approve' : 'reject';
-    if (!confirm(`Are you sure you want to ${label} this password reset request?`)) return;
-    try {
-      const response = await fetch('actions/password_reset_decision.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ request_id: Number(id), decision }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error?.message || 'Request failed');
-      alert(body.data?.message || 'Done');
-      loadRequests();
-    } catch (e) {
-      alert(e.message || 'Failed');
-    }
+
+    confirmDialog(`Are you sure you want to ${label} this password reset request?`, async () => {
+      try {
+        const response = await fetch('actions/password_reset_decision.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ request_id: Number(id), decision }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error?.message || 'Request failed');
+        alertDialog(body.data?.message || 'Done');
+        loadRequests();
+      } catch (e) {
+        alertDialog(e.message || 'Failed');
+      }
+    });
   });
 
   // Reload when tab is opened

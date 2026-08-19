@@ -44,7 +44,7 @@ class GoogleSheetsSync:
             return False
 
         payload = {
-            "timestamp": datetime.now().astimezone().isoformat(),
+            "timestamp": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"),
             "employee_id": employee_id,
             "employee_name": employee_name,
             "event_type": event_type,

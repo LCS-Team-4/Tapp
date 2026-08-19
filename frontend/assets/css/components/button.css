@@ -10,4 +10,5 @@
 .btn-rust{ background:transparent; border:1px solid var(--rust)!important; color:var(--pink-deep); }
 .btn-rust:hover{ background:rgba(109,56,43,0.25); }
 .btn-sm{ padding:8px 14px; font-size:12.5px; }
-.btn-icon{ width:36px; height:36px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:rgba(210,167,167,0.1); color:var(--cream-dim); transition:all 0.2s ease; }\n.btn-icon:hover{ background:rgba(210,167,167,0.22); color:var(--pink); }
+.btn-icon{ width:36px; height:36px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:rgba(210,167,167,0.1); color:var(--cream-dim); transition:all 0.2s ease; }
+.btn-icon:hover{ background:rgba(210,167,167,0.22); color:var(--pink); }

@@ -32,7 +32,7 @@ function doPost(e) {
     var sheet = getOrCreateSheet_();
 
     var row = [
-      payload.timestamp || new Date().toISOString(),
+      formatTimestamp_(payload.timestamp),
       payload.employee_id || '',
       payload.employee_name || '',
       payload.event_type || '',
@@ -51,6 +51,24 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Converts a timestamp into a human-readable format like "2026-08-17 15:48:15".
+ * Accepts ISO strings (e.g. "2026-08-17T15:48:15+02:00"), Date objects, or
+ * epoch milliseconds. Falls back to the raw value if it can't be parsed.
+ */
+function formatTimestamp_(ts) {
+  if (!ts) {
+    ts = new Date().toISOString();
+  }
+  var d = new Date(ts);
+  if (isNaN(d.getTime())) {
+    return ts;
+  }
+  var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+         ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
 
 /**

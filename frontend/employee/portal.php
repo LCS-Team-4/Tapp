@@ -102,22 +102,22 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
           </div>
           <div class="card">
             <div class="sub">Leave Balances</div>
-            <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
-              <div style="text-align:center;">
-                <div class="stat-num" style="font-size:22px;" id="bal-annual"><?= (int) $leaveBalances['annual_leave'] ?></div>
-                <div class="muted" style="font-size:12px;">Annual</div>
+            <div class="leave-balances">
+              <div class="lb-item">
+                <div class="stat-num" id="bal-annual"><?= (int) $leaveBalances['annual_leave'] ?></div>
+                <div class="muted">Annual</div>
               </div>
-              <div style="text-align:center;">
-                <div class="stat-num" style="font-size:22px;" id="bal-sick"><?= (int) $leaveBalances['sick_leave'] ?></div>
-                <div class="muted" style="font-size:12px;">Sick</div>
+              <div class="lb-item">
+                <div class="stat-num" id="bal-sick"><?= (int) $leaveBalances['sick_leave'] ?></div>
+                <div class="muted">Sick</div>
               </div>
-              <div style="text-align:center;">
-                <div class="stat-num" style="font-size:22px;" id="bal-stu"><?= (int) $leaveBalances['stu_leave'] ?></div>
-                <div class="muted" style="font-size:12px;">Study</div>
+              <div class="lb-item">
+                <div class="stat-num" id="bal-stu"><?= (int) $leaveBalances['stu_leave'] ?></div>
+                <div class="muted">Study</div>
               </div>
-              <div style="text-align:center;">
-                <div class="stat-num" style="font-size:22px;" id="bal-fr"><?= (int) $leaveBalances['fr_leave'] ?></div>
-                <div class="muted" style="font-size:12px;">Family Resp.</div>
+              <div class="lb-item">
+                <div class="stat-num" id="bal-fr"><?= (int) $leaveBalances['fr_leave'] ?></div>
+                <div class="muted">Family Resp.</div>
               </div>
             </div>
             <p class="muted" style="margin-top:8px;">days remaining per leave type</p>
@@ -127,7 +127,7 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
         <div class="grid grid-2">
           <div class="card">
             <div class="section-head"><h3>Quick Actions</h3></div>
-            <div style="display:flex; gap:14px; flex-wrap:wrap;">
+            <div class="quick-actions">
               <button class="btn btn-pink" data-goto="e-attendance" type="button">View Attendance</button>
               <button class="btn btn-outline" data-goto="e-profile" data-subtab="leave" type="button">Apply for Leave</button>
               <button class="btn btn-outline" data-goto="e-profile" data-subtab="history" type="button">View History</button>

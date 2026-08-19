@@ -15,6 +15,10 @@
 .bloom-legend .lg-item{ display:flex; align-items:center; gap:8px; color:var(--cream-dim); }
 .bloom-legend .lg-dot{ width:9px; height:9px; border-radius:2px; }
 
+@media (max-width:480px){
+  .bloom-wrap{ flex-direction:column; align-items:flex-start; gap:16px; }
+}
+
 /* reports */
 .report-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
 @media (max-width:900px){ .report-grid{ grid-template-columns:1fr 1fr; } }
@@ -59,3 +63,10 @@
    Leave date-picker for that pattern) — just restyling the native control. */
 input[type="time"]{ color-scheme: dark; }
 input[type="time"]::-webkit-calendar-picker-indicator{ filter: invert(0.85) brightness(1.3); cursor: pointer; }
+
+/* Password reset requests — Actions column. Applying display:flex directly
+   to a <td> breaks table cell alignment (the buttons no longer vertically
+   center with the other cells). Instead the cell keeps its table-cell
+   display and the inner wrapper div does the flexing. */
+#password-reset-tbody td.pr-actions-col{ white-space:nowrap; vertical-align:middle; }
+#password-reset-tbody td.pr-actions-col > div{ display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }

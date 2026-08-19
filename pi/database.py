@@ -262,7 +262,8 @@ class Database:
         (
             employee_id,
             action,
-            attendance_time
+            attendance_time,
+            sync_status
         )
 
         VALUES
@@ -270,7 +271,8 @@ class Database:
         (
             %s,
             %s,
-            %s
+            %s,
+            'pending'
         )
 
         """

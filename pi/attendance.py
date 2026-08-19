@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from config import COOLDOWN_MINUTES
-from google_sheets_sync import GoogleSheetsSync
 
 
 class AttendanceManager:
@@ -9,8 +8,6 @@ class AttendanceManager:
     def __init__(self, database, logger=None):
 
         self.database = database
-        self.google_sheets = GoogleSheetsSync(database, logger=logger)
-
 
 
     # PROCESS RFID SCAN
@@ -116,15 +113,6 @@ class AttendanceManager:
             )
 
 
-            # Sync to Google Sheets (best-effort, never blocks the clock flow)
-            self.google_sheets.log_event(
-                employee_id,
-                name,
-                "clock_in",
-                "device"
-            )
-
-
             return True
 
 
@@ -166,15 +154,6 @@ class AttendanceManager:
             print(
                 "✅ Clocked Out:",
                 name
-            )
-
-
-            # Sync to Google Sheets (best-effort, never blocks the clock flow)
-            self.google_sheets.log_event(
-                employee_id,
-                name,
-                "clock_out",
-                "device"
             )
 
 

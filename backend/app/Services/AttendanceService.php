@@ -74,15 +74,6 @@ class AttendanceService
             throw $e;
         }
 
-        // Log the clock event to Google Sheets (if sync is enabled). This is
-        // best-effort and never blocks or breaks the clock flow.
-        try {
-            $eventType = $action === 'in' ? 'clock_in' : 'clock_out';
-            (new GoogleSheetsService())->logEvent($employeeId, $user->name, $eventType, $method);
-        } catch (\Throwable $e) {
-            error_log('GoogleSheetsService clock hook failed: ' . $e->getMessage());
-        }
-
         return ['action' => $action === 'in' ? 'clocked_in' : 'clocked_out'];
     }
 
@@ -127,15 +118,6 @@ class AttendanceService
         } catch (\Throwable $e) {
             $pdo->rollBack();
             throw $e;
-        }
-
-        // Log the clock event to Google Sheets (if sync is enabled). This is
-        // best-effort and never blocks or breaks the clock flow.
-        try {
-            $eventType = $targetStatus === 'IN' ? 'clock_in' : 'clock_out';
-            (new GoogleSheetsService())->logEvent($employeeId, $user->name, $eventType, $method);
-        } catch (\Throwable $e) {
-            error_log('GoogleSheetsService clock hook failed: ' . $e->getMessage());
         }
 
         return ['action' => $targetStatus === 'IN' ? 'clocked_in' : 'clocked_out'];

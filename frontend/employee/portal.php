@@ -192,10 +192,10 @@ $clockStatusLabel = $clockStatusLabels[$todayStatus['status']] ?? ucfirst((strin
               <div class="card">
                 <div class="section-head"><h3>Profile Details</h3></div>
                 <div class="form-row">
-                  <div class="form-field" id="field-profile-name"><label>Full Name</label><input type="text" id="profile-name" value="<?= htmlspecialchars($currentUser['name']) ?>" disabled title="Full name cannot be changed by employees"></div>
-                  <div class="form-field"><label>Employee ID</label><input type="text" value="<?= htmlspecialchars($currentUser['employee_id']) ?>" disabled></div>
+                  <div class="form-field" id="field-profile-name"><label>Full Name</label><input type="text" id="profile-name" value="<?= htmlspecialchars($currentUser['name']) ?>" disabled class="profile-readonly" style="color:var(--cream-dim); background:rgba(205,185,171,0.08); border-color:rgba(205,185,171,0.15); opacity:0.75; cursor:not-allowed;" title="Full name cannot be changed by employees"></div>
+                  <div class="form-field"><label>Employee ID</label><input type="text" value="<?= htmlspecialchars($currentUser['employee_id']) ?>" disabled class="profile-readonly" style="color:var(--cream-dim); background:rgba(205,185,171,0.08); border-color:rgba(205,185,171,0.15); opacity:0.75; cursor:not-allowed;"></div>
                   <div class="form-field" id="field-profile-email"><label>Email</label><input type="text" id="profile-email" value="<?= htmlspecialchars($currentUser['email']) ?>"></div>
-                  <div class="form-field"><label>Department</label><input type="text" id="profile-department" value="<?= htmlspecialchars($currentUser['department']) ?>" disabled title="Department cannot be changed by employees"></div>
+                  <div class="form-field"><label>Department</label><input type="text" id="profile-department" value="<?= htmlspecialchars($currentUser['department']) ?>" disabled class="profile-readonly" style="color:var(--cream-dim); background:rgba(205,185,171,0.08); border-color:rgba(205,185,171,0.15); opacity:0.75; cursor:not-allowed;" title="Department cannot be changed by employees"></div>
                 </div>
                 <p class="form-error" id="profile-save-error" style="display:none;"></p>
                 <p class="form-success" id="profile-save-success" style="display:none;">Profile updated.</p>

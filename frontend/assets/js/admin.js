@@ -749,6 +749,7 @@ function renderLiveFeed(feed) {
       <span class="feed-time">${escapeHtml(item.time_label)}</span>
       <span class="feed-dot" style="background:${feedDotColor(item.event_type)};"></span>
       <span class="feed-text"><b>${escapeHtml(item.employee_name)}</b> ${escapeHtml(feedText(item.event_type))}</span>
+      <span class="feed-date">${escapeHtml(item.date_label || '')}</span>
     </div>
   `).join('');
 }

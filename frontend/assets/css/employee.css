@@ -39,3 +39,25 @@
 @media (max-width:480px){
   .leave-balances{ grid-template-columns:repeat(2, 1fr); gap:14px; }
 }
+
+/* Profile read-only fields — greyed out so employees understand these
+   details are managed by an administrator and cannot be edited. */
+.profile-readonly-note{ font-size:12.5px; margin-bottom:14px; opacity:0.8; }
+.profile-readonly,
+.profile-readonly:disabled,
+.profile-readonly[disabled]{
+  background:rgba(205,185,171,0.08) !important;
+  color:var(--cream-dim) !important;
+  -webkit-text-fill-color:var(--cream-dim) !important;
+  border-color:rgba(205,185,171,0.15) !important;
+  opacity:0.75 !important;
+  cursor:not-allowed !important;
+  box-shadow:none !important;
+}
+.profile-readonly:hover,
+.profile-readonly:focus,
+.profile-readonly:disabled:hover,
+.profile-readonly:disabled:focus{
+  border-color:rgba(205,185,171,0.15) !important;
+  background:rgba(205,185,171,0.08) !important;
+}

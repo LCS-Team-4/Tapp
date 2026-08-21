@@ -87,7 +87,7 @@ function dashboard_signature(array $data): string
     $feed = $data['live_feed'] ?? [];
     $feedSig = [];
     foreach (array_slice($feed, 0, 20) as $item) {
-        $feedSig[] = ($item['time_label'] ?? '') . ':' . ($item['employee_name'] ?? '') . ':' . ($item['event_type'] ?? '');
+        $feedSig[] = ($item['time_label'] ?? '') . ':' . ($item['date_label'] ?? '') . ':' . ($item['employee_name'] ?? '') . ':' . ($item['event_type'] ?? '');
     }
     $parts[] = implode('|', $feedSig);
 

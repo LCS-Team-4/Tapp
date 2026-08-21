@@ -8,6 +8,7 @@
 .feed-time{ font-size:11px; color:var(--tan-light); font-weight:700; min-width:44px; }
 .feed-text{ font-size:13px; color:var(--cream); }
 .feed-text b{ color:var(--pink); }
+.feed-date{ font-size:11px; color:var(--cream-dim); margin-left:auto; flex-shrink:0; white-space:nowrap; }
 
 /* petal bloom mini chart */
 .bloom-wrap{ display:flex; align-items:center; gap:22px; }

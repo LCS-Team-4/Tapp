@@ -140,6 +140,7 @@ if (is_readable($emailEnvPath)) {
               <span class="feed-time"><?= htmlspecialchars($item['time_label']) ?></span>
               <span class="feed-dot" style="background:<?= htmlspecialchars(feed_dot_color($item['event_type'])) ?>;"></span>
               <span class="feed-text"><b><?= htmlspecialchars($item['employee_name']) ?></b> <?= htmlspecialchars(feed_text($item['event_type'])) ?></span>
+              <span class="feed-date"><?= htmlspecialchars($item['date_label'] ?? '') ?></span>
             </div>
             <?php endforeach; ?>
             </div>

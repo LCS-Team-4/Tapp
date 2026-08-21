@@ -163,7 +163,9 @@ class AttendanceRepository
         $stmt->bindValue(1, $limit, PDO::PARAM_INT);
         $stmt->execute();
 
-        return array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+        // Keep the DESC query order so the live feed renders newest-first
+        // (the latest entries appear at the top of the dashboard).
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     // Computes hours between the first 'in' and last 'out' event of a day.

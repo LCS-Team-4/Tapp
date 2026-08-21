@@ -263,12 +263,17 @@ class AttendanceService
         return round($totalHours, 1);
     }
 
-    // Feed of recent clock events for the admin dashboard.
+    // Feed of recent clock events for the admin dashboard. Entries are
+    // newest-first (the repository no longer reverses the DESC query), so
+    // the live feed shows the latest activity at the top.
     public function feed(int $limit = 20): array
     {
         return array_map(function (array $event): array {
+            $date = substr($event['attendance_time'] ?? '', 0, 10);
+            $dt = $date !== '' ? new \DateTimeImmutable($date) : null;
             return [
                 'time_label' => substr($event['attendance_time'] ?? '', 11, 5) ?: '',
+                'date_label' => $dt !== null ? $dt->format('D, j M') : '',
                 'employee_name' => $event['name'] ?? '',
                 'event_type' => $event['action'] === 'in' ? 'clock_in' : 'clock_out',
             ];

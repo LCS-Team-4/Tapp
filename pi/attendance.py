@@ -108,7 +108,7 @@ class AttendanceManager:
 
 
             print(
-                "✅ Clocked In:",
+                "Clocked In:",
                 name
             )
 
@@ -152,7 +152,7 @@ class AttendanceManager:
 
 
             print(
-                "✅ Clocked Out:",
+                "Clocked Out:",
                 name
             )
 

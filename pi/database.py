@@ -41,7 +41,7 @@ class Database:
                     dictionary=True
                 )
 
-                print("✅ MySQL Connected")
+                print("MySQL Connected")
 
                 return True
 

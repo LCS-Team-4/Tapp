@@ -19,7 +19,23 @@ function setLoginRole(role) {
   if (labelEl) labelEl.textContent = role === 'employee' ? 'Email' : 'Admin Email';
   if (idEl) idEl.placeholder = role === 'employee' ? 'employee@gmail.com' : 'admin@gmail.com';
   if (roleInput) roleInput.value = role;
+
+  // Show the demo credential that matches the currently selected role tab.
+  const demoEmployee = document.getElementById('demo-employee');
+  const demoAdmin = document.getElementById('demo-admin');
+  const demoRoleLabel = document.getElementById('demo-role-label');
+  if (demoEmployee && demoAdmin) {
+    demoEmployee.style.display = role === 'employee' ? '' : 'none';
+    demoAdmin.style.display = role === 'admin' ? '' : 'none';
+  }
+  if (demoRoleLabel) demoRoleLabel.textContent = role === 'employee' ? 'Employee' : 'Admin';
 }
+
+// On load, sync the demo credential box to whichever role tab is active (defaults to employee).
+(function initLoginRole() {
+  const activeTab = document.querySelector('.role-toggle button.active');
+  if (activeTab && activeTab.dataset.role) setLoginRole(activeTab.dataset.role);
+})();
 
 function switchTab(btn) {
   const shell = btn.closest('.app-shell');

@@ -113,9 +113,22 @@ $error = $_GET['error'] ?? '';
       <a href="forgot_password.php" style="color:inherit; opacity:0.85;">Forgot password?</a>
     </p>
 
+    <div class="demo-login" title="Demo credentials — for preview only">
+      <div class="demo-login-title">🔑 Demo account <span class="demo-role-tag" id="demo-role-label">Employee</span></div>
+      <div class="demo-login-row" id="demo-employee">
+        <span>Email</span><code>haron.t.7002@gmail.com</code>
+      </div>
+      <div class="demo-login-row" id="demo-admin" style="display:none;">
+        <span>Email</span><code>admin@tapp.app</code>
+      </div>
+      <div class="demo-login-row">
+        <span>Password</span><code>1234</code>
+      </div>
+    </div>
+
   </div>
 </div>
 
-<script src="assets/js/app.js"></script>
+<script src="assets/js/app.js?v=2"></script>
 </body>
 </html>
